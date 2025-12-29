@@ -68,7 +68,7 @@ func main() {
 	var outputFile string
 	var outputWriter io.Writer
 
-	flag.StringVar(&outputFile, "f", "", "Output file (default:stdout)")
+	flag.StringVar(&outputFile, "f", "", "Output files (default:stdout)")
 	flag.Parse()
 
 	directories := os.Args[1:]
