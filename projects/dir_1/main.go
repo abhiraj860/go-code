@@ -58,7 +58,7 @@ func app(directories []string, outputWriter io.Writer, cfg *CliConfig) {
 			return nil
 		})
 		if err != nil {
-			fmt.Fprintf(cfg.ErrStream, "Error in walking the path %q: %v\n", directory, err)
+			fmt.Fprintf(cfg.ErrStream, "Error in walking the path directory %q: %v\n", directory, err)
 			continue
 		}
 	}
