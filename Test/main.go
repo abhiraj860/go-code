@@ -13,6 +13,5 @@ type Rectangle struct {
 	strokeColor color.Color
 	linewidth int
 }
-
 func main() {
 }
