@@ -32,7 +32,7 @@ func CreateNotification(notificationType string) (Notification, error) {
 	}
 }
 
-func main() {
-	notif,_ := CreateNotification("email")
-	notif.Send("Hello")
-}
+// func main() {
+// 	notif,_ := CreateNotification("email")
+// 	notif.Send("Hello")
+// }
