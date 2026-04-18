@@ -1,0 +1,4 @@
+Encapsulation: Hide state, expose behaviour. Make fields private, provide methods for access.
+Abstraction: Define interface for variations. Multiple payments methods? Different vehicle types? Create an interface
+Polymorphism: Let objects handle themselves. No type checking, no switch statements on types
+Inheritance: Compose behaviour, don't inherit it. Reach for interface first, use inheritance only when sharing stable implementation
