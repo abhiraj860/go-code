@@ -1,5 +1,5 @@
 // SOLID Principles
-// - ISP - Keep interfaces clean and focussed
+// ISP - Keep interfaces clean and focussed
 
 package main
 
