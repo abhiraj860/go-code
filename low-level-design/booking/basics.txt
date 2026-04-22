@@ -13,4 +13,144 @@ Out of Scope:
 - Rescheduling (cancel and rebook instead)
 - UI / rendering
 
+
+==========================================================================================================================================
 Verification and Test cases runs
+==========================================================================================================================================
+
+Test Case 1 : Successful Booking Flow
+Setup: Showtime for "Inception" at 7pm with all 546 seats available.
+Initial state:
+  showtime.reservations = [] (empty)
+  bookingSystem.reservationsById = {} (empty)
+
+Operation: bookingSystem.book("showtime-123", ["A5", "A6"])
+
+BookingSystem.book:
+  1. Validate inputs → OK
+  2. Look up showtime: showtimesById["showtime-123"] → found
+
+  3. Create reservation:
+       confirmationId = generateConfirmationId() → "BMS-X7Y2Z9K4"
+       showtime = showtime
+       seatIds = ["A5", "A6"]
+
+  4. showtime.book(reservation):
+       synchronized(this):
+         Validate "A5": isValidSeatId → true ✓
+         Validate "A6": isValidSeatId → true ✓
+         Check "A5": isAvailable("A5") → true ✓
+         Check "A6": isAvailable("A6") → true ✓
+         Store: reservations.add(reservation)
+       (returns without throwing)
+
+  5. Register in routing index: reservationsById["BMS-X7Y2Z9K4"] = reservation
+  6. Return reservation
+
+Final state:
+  showtime.reservations = [reservation] (contains seats "A5", "A6")
+  bookingSystem.reservationsById = {"BMS-X7Y2Z9K4" → reservation}
+
+Result: Reservation with confirmation "BMS-X7Y2Z9K4"
+The booking succeeded. BookingSystem created the Reservation and handed it to Showtime, which validated seats and stored it atomically. BookingSystem then registered it in the routing index for future cancellation lookups.
+
+======================================================================================================================================================================================================================================================================================
+
+Test Case 2 : Concurrent Booking - Exactly One Succeeds
+Setup: Showtime with seat "A5" available. Two threads try to book it simultaneously.
+Initial state:
+  showtime.reservations = [] (empty)
+
+Thread A: bookingSystem.book("showtime-123", ["A5"])
+Thread B: bookingSystem.book("showtime-123", ["A5"])
+
+Both threads create their Reservation objects, then call showtime.book():
+
+  Thread A: enters synchronized block
+  Thread B: waits at synchronized block entrance
+
+  Thread A (inside lock):
+    Check "A5": isAvailable("A5") scans reservations → true ✓
+    Store: reservations.add(reservation)
+    Exit synchronized block
+
+  Thread A (back in BookingSystem): registers in routing index
+
+  Thread B (now enters lock):
+    Check "A5": isAvailable("A5") scans reservations → false ✗ (Thread A's reservation claims it)
+    Throw SeatUnavailableException("A5")
+
+  Thread B (exception propagates to BookingSystem): reservation never registered
+
+Result:
+  Thread A: Returns reservation ✓
+  Thread B: Throws SeatUnavailableException ✓
+
+Exactly one thread succeeded. Requirement R6 satisfied.
+The synchronized block ensures only one thread can check-and-store at a time. Thread B's reservation was created but never persisted because the showtime rejected it.
+
+======================================================================================================================================================================================================================================================================================
+
+Test Case 3: Cancellation Releases Seats Correctly
+Setup: Existing reservation "BMS-X7Y2Z9K4" for seats "A5" and "A6".
+Initial state:
+  showtime.reservations = [reservation] (reservation holds seats "A5", "A6")
+  bookingSystem.reservationsById = {"BMS-X7Y2Z9K4" → reservation}
+  reservation.showtime = showtime
+
+Operation: bookingSystem.cancelReservation("BMS-X7Y2Z9K4")
+
+BookingSystem.cancelReservation:
+  1. Look up: reservationsById["BMS-X7Y2Z9K4"] → found
+  2. Follow back-reference: reservation.getShowtime() → showtime
+
+  3. showtime.cancel(reservation):
+       synchronized(this):
+         reservations.remove(reservation)
+
+  4. Remove from routing index: reservationsById.remove("BMS-X7Y2Z9K4")
+
+Final state:
+  showtime.reservations = [] (empty, seats "A5" and "A6" now available)
+  bookingSystem.reservationsById = {} (empty)
+
+Result: Seats "A5" and "A6" are now available for new bookings ✓
+
+Showtime removed the reservation, making the seats available again. BookingSystem cleaned up its routing index.
+
+======================================================================================================================================================================================================================================================================================
+
+Test Case 4: Partial booking fails atomically
+Setup: Seat "A6" is already booked. User tries to book "A5", "A6", and "A7".
+Initial state:
+  showtime.reservations = [existing_reservation] (existing_reservation holds seat "A6")
+
+Operation: bookingSystem.book("showtime-123", ["A5", "A6", "A7"])
+
+BookingSystem.book:
+  1. Look up showtime → found
+  2. Create reservation with seatIds = ["A5", "A6", "A7"]
+
+  3. showtime.book(reservation):
+       synchronized(this):
+         Validate "A5", "A6", "A7": all valid seat IDs ✓
+         Check "A5": isAvailable("A5") → true ✓
+         Check "A6": isAvailable("A6") → false ✗ (claimed by existing_reservation)
+         Throw SeatUnavailableException("A6")
+
+         // Never reaches the store step!
+
+  4. Exception propagates to BookingSystem
+  5. Reservation never registered in routing index
+
+Final state:
+  showtime.reservations = [existing_reservation] (unchanged!)
+
+Result:
+  Exception thrown ✓
+  "A5" was NOT booked (all-or-nothing) ✓
+  No reservation stored anywhere ✓
+
+No partial booking occurred — seat A5 was never claimed despite being available, because A6 failed the check first. The reservation was created but never persisted.
+
+======================================================================================================================================================================================================================================================================================
