@@ -25,7 +25,7 @@ func (t *Theater) GetShowTimes() []*Showtime {
 func (t *Theater) GetShowtimesForMovie(movie *Movie) []*Showtime {
 	var results []*Showtime
 	for _, showtime := range t.showtimes {
-		if showtime.GetMovie().GetId() == movie.GetId() {
+		if showtime.GetMovie().GetID() == movie.GetID() {
 			results = append(results, showtime)
 		}
 	}

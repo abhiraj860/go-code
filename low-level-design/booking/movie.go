@@ -9,7 +9,7 @@ func NewMovie(id string, title string) *Movie {
 	return &Movie{id: id, title: title}	
 }
 
-func (m *Movie) GetId() string {
+func (m *Movie) GetID() string {
 	return m.id
 }
 
