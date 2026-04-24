@@ -12,7 +12,7 @@ type requestLog struct {
 	timestamps []int64
 }
 
-func NewSlidingWindow(maxRequests int, windowMs int64) *SlidingWindowLogLimiter {
+func NewSlidingWindowLogLimiter(maxRequests int, windowMs int64) *SlidingWindowLogLimiter {
 	return &SlidingWindowLogLimiter{
 		maxRequests: maxRequests,
 		windowMs: windowMs,
