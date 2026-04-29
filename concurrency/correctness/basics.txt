@@ -1,0 +1,27 @@
+Is there shared, mutable state?
+│
+├── No → No synchronization needed
+│
+└── Yes
+      │
+      └── What are you protecting?
+            │
+            ├── Single variable → Atomic variables
+            │
+            └── Multiple variables or an invariant
+                        │
+                        └── Is contention a concern?
+                                    │
+                                    ├── No (human triggered, moderate load)
+                                    │           │
+                                    │           └── Can you partition by resource?
+                                    │                       │
+                                    │                       ├── Yes → Fine-grained locking
+                                    │                       │
+                                    │                       └── No  → Coarse-grained locking
+                                    │
+                                    └── Yes (machine triggered, high throughput)
+                                                │
+                                                └── Can you partition by thread?
+                                                            │
+                                                            └── Yes → Thread confinement
