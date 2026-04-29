@@ -1,11 +1,11 @@
-// Locks (Mutex)
+// Locks (Mutexes)
 package toolbox
 
 import "sync"
 
-var mu sync.Mutex
 
 func Lock() {
+	var mu sync.Mutex
 	balance := 0
 	amount := 20
 	mu.Lock()
