@@ -1,0 +1,15 @@
+Need async work?
+│
+├── No → Handle inline
+│
+└── Yes
+      │
+      └── What kind of problem?
+                │
+                ├── Simple task handoff
+                │           │
+                │           └── BlockingQueue
+                │
+                └── Many stateful entities coordinating
+                                │
+                                └── ConsiderActor Model
