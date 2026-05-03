@@ -1,0 +1,72 @@
+Requirements:
+1. Carrier deposits a package by specifying size (small, medium, large)
+   - System assigns an available compartment of matching size
+   - Opens compartment and returns access token, or error if no space
+2. Upon successful deposit, an access token is generated and returned
+   - One access token per package
+3. User retrieves package by entering access token
+   - System validates code and opens compartment
+   - Throws specific error if code is invalid or expired
+4. Access tokens expire after 7 days
+   - Expired codes are rejected if used for pickup
+   - Package remains in compartment until staff removes it
+5. Staff can open all expired compartments to manually handle packages
+   - System opens all compartments with expired tokens
+   - Staff physically removes packages and returns them to sender
+6. Invalid access tokens are rejected with clear error messages
+   - Wrong code, already used, or expired - user gets specific feedback
+
+Out of scope:
+- How the package gets to the locker (delivery logistics)
+- How the access token reaches the customer (SMS/email notification)
+- Lockout after failed access token attempts
+- UI/rendering layer
+- Multiple locker stations
+- Payment or pricing
+
+==============================================================================================
+Verification
+==============================================================================================
+Locker has compartments A (SMALL), B (MEDIUM), C (LARGE), all with occupied = false. AccessToken map is empty.
+Deposit a medium package:
+
+Deposit Package (Medium)
+Initial: compartments=[A, B, C], accessTokenMapping={}
+
+getAvailableCompartment(MEDIUM) → Compartment B (size matches, not occupied)
+B.open() → triggers hardware unlock
+B.markOccupied() → B.occupied = true
+generateAccessToken(B) → AccessToken("ABC123", expiration=now+7days, compartment=B)
+accessTokenMapping.put("ABC123", accessToken) → map now has entry
+
+Result: "ABC123"
+State: B.occupied=true, accessTokenMapping={"ABC123" → AccessToken}
+
+Notice how each Compartment manages its own occupied state, and the door opens immediately.
+==============================================================================================
+Successful Pickup
+Pickup:
+accessTokenMapping.get("ABC123") → AccessToken exists
+accessToken.isExpired() → now < expiration, returns false
+accessToken.getCompartment() → returns B
+B.open() → triggers hardware unlock
+clearDeposit(accessToken):
+  - accessToken.getCompartment() → returns B
+  - B.markFree() → B.occupied = false
+  - accessTokenMapping.remove("ABC123")
+
+Result: void (compartment opened)
+State: B.occupied=false, accessTokenMapping={}
+Both cleanup steps executed, and the physical door opened.
+==============================================================================================
+Expired pickup attempt (8 days later):
+Pickup:
+accessTokenMapping.get("ABC123") → AccessToken still exists
+accessToken.isExpired() → now > expiration, returns true
+throw Error("Access token has expired")
+
+Result: Error thrown (no compartment opened)
+State: B.occupied=true, accessTokenMapping={"ABC123" → AccessToken (expired)}
+
+The expired token stays in the mapping and the compartment remains occupied. Staff would later call openExpiredCompartments() to physically retrieve the package, then call a cleanup method to free the compartment and remove the token.
+==============================================================================================
