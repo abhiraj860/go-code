@@ -1,0 +1,17 @@
+Scarcity Decision Tree
+
+What's the goal?
+
+├── Utilization (don't waste capacity)
+│   └── Shape of the problem?
+│       ├── Uneven task duration       → Work Stealing
+│       ├── Many small operations      → Batching
+│       └── Variable load over time    → Adaptive Sizing
+
+└── Governance (don't exceed limits)
+    └── What are you protecting?
+        ├── Concurrent operations
+        │   └── Handing out actual objects? (connections, GPU)?
+        │       ├── Yes → BlockingQueue as resource pool
+        │       └── No  → Semaphore with N permits
+        └── Aggregate consumption      → Semaphore where permits = resource units
