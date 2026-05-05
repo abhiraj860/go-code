@@ -3,7 +3,6 @@ package parkinglot
 import (
 	"errors"
 	"time"
-
 	"github.com/google/uuid"
 )
 
