@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 func someFunc(num string) {
@@ -11,12 +10,22 @@ func someFunc(num string) {
 
 
 func main() {
-	go someFunc("1")
-	go someFunc("2")
-	go someFunc("3")
-	go someFunc("4")
+	myChannel := make(chan string)
+	anotherChannel := make(chan string)
 
-	time.Sleep(time.Second * 2)
+	go func() {
+		myChannel <- "data"
+	}()
 
-	fmt.Println("hi")
+
+	go func() {
+		anotherChannel <- "cow"
+	}()
+
+	select {
+	case msgFromMyChannel := <- myChannel:
+		fmt.Println(msgFromMyChannel)
+	case msgFromAnotherChannel := <- anotherChannel:
+		fmt.Println(msgFromAnotherChannel)
+	}
 }
