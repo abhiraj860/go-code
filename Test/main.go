@@ -4,11 +4,6 @@ import (
 	"fmt"
 )
 
-func someFunc(num string) {
-	fmt.Println(num)
-}
-
-
 func main() {
-	fmt.Println("Hello")
+	fmt.Println("Golanf");
 }
