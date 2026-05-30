@@ -26,10 +26,11 @@ func (uc *UserController) GetUser(w http.ResponseWriter, r *http.Request, p http
 	}
 	oid := bson.ObjectIdHex(id)
 	u := models.User{}
-	if err := uc.session.DB("mongo-golang").C("users").FindId(oid); err != nil {
+	if err := uc.session.DB("mongo-golang").C("users").FindId(oid).One(&u); err != nil {
 		w.WriteHeader(404)
 		return 
 	}
+
 	uj, err := json.Marshal(u)
 	if err != nil {
 		fmt.Println(err)
