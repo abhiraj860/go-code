@@ -5,12 +5,11 @@ import (
 	"time"
 )
 
-
 type RateLimit struct {
-	Limit int
-	WindowSize int
+	Limit         int
+	WindowSize    int
 	CurrentWindow int
-	Counter int
+	Counter       int
 }
 
 func (r *RateLimit) AllowRequest() bool {
@@ -37,11 +36,11 @@ func main() {
 	counter := 0
 
 	rateLimit := &RateLimit{
-		Limit: limit,
-		WindowSize: windowSize,
+		Limit:         limit,
+		WindowSize:    windowSize,
 		CurrentWindow: currentWindow,
-		Counter : counter,
-	}		
+		Counter:       counter,
+	}
 	for i := 0; i < 7; i++ {
 		if i == 0 {
 			time.Sleep(4 * time.Second)
