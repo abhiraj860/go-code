@@ -3,27 +3,12 @@ package main
 import "fmt"
 
 func main() {
-	nums := []int{2, 3, 4, 5, 5}
-	s := 0
-	e := len(nums) - 1
-	k := 0
-	fmt.Scanln(&k)
-	found := false
-	mid := -1
-	for s <= e {
-		mid = (s + e) / 2
-		if nums[mid] == k {
-			found = true
-			break
-		} else if nums[mid] < k {
-			s = mid + 1
-		} else {
-			e = mid - 1
-		}
-	}
-	if found {
-		fmt.Println(mid)
-	} else {
-		fmt.Println(-1)
-	}
+	arr := [3]int{1, 2, 3}
+	v := []int{1,2 , 3}
+	v = append(v, 4)
+	a := make([]int, 4, 5)
+	fmt.Println(a)
+	v[0] = 10
+	fmt.Println(len(v))
+	fmt.Println(arr)
 }
