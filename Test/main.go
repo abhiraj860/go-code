@@ -3,30 +3,26 @@ package main
 import "fmt"
 
 
-func vowelStrings(word string, queries [][]int) []int {
-	n := len(word)
-	vowelCnt := make([]int, n + 1)
-	for i, ch := range word {
-		switch ch {
-			case 'a', 'e', 'i', 'o', 'u':
-				vowelCnt[i + 1] = vowelCnt[i] + 1
-			default:
-				vowelCnt[i + 1] = vowelCnt[i] 
-		}
+func subarraySum(nums []int, k int) int {
+	mp := make(map[int]int)
+	mp[0] = 1
+	sum := 0
+	cnt := 0
+	for _, n := range nums {
+		sum += n
+		remainingSum := sum - k
+		cnt += mp[remainingSum]
+		mp[sum]++
 	}
-	res := []int{}
-	for _, que := range queries {
-		i := que[0]
-		j := que[1]
-		res = append(res, vowelCnt[j + 1] - vowelCnt[i])
-	}
-	
-	return res
+    return cnt
 }
 
 
 func main() {
-	word := "prefixsum"
-	queries := [][]int{{0, 2}, {1, 4}, {3, 5}}
-	fmt.Println(vowelStrings(word, queries))
+	nums := []int{3, 4, 7, 2, -3, 1, 4, 2}
+	k := 7
+	fmt.Println(subarraySum(nums, k))
+	nums1 := []int{1, -1, 0}
+	k1 := 0
+	fmt.Println(subarraySum(nums1, k1))
 }
