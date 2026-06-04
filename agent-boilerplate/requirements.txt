@@ -1,0 +1,7 @@
+oracledb
+langchain
+langchain-oracledb
+langchain-ollama
+langchain-openai
+langchain-google-genai
+python-dotenv
