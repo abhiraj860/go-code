@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/binary"
 	"sort"
 	"fmt"
@@ -21,7 +21,7 @@ func NewHashRing(replicationFactor int) *HashRing {
 }
 
 func hash(key string) int {
-	digest := md5.Sum([]byte(key))
+	digest := sha256.Sum256([]byte(key))
 	return int(binary.BigEndian.Uint64(digest[:8]))
 }
 
