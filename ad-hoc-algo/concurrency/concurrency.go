@@ -856,4 +856,125 @@ func main() {
 
 	section("13. Atomic Operations    — lock-free counters and CAS")
 	atomicOps()
+
+	section("14. Deadlock              — bank transfer: cause and fix")
+	deadlock()
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 14. DEADLOCK — Bank Transfer (cause and fix)
+//
+//  SCENARIO: two accounts, two goroutines transferring money to each
+//  other simultaneously.
+//
+//  DEADLOCK CAUSE — lock ordering inconsistency:
+//    goroutine A: locks account-1, then tries to lock account-2
+//    goroutine B: locks account-2, then tries to lock account-1
+//    Both are now waiting for the other to release — forever.
+//
+//  This is the classic "hold and wait" condition:
+//    - goroutine A holds lock-1, waits for lock-2
+//    - goroutine B holds lock-2, waits for lock-1
+//    Neither can proceed. Go's runtime detects a full deadlock and
+//    panics: "all goroutines are asleep — deadlock!"
+//
+//  THE FIX — consistent global lock ordering:
+//    Always lock the account with the lower ID first, regardless of
+//    transfer direction. Now both goroutines compete for lock-1 first:
+//    one wins, completes the transfer, releases both locks, and the
+//    other proceeds. Circular wait is structurally impossible.
+//
+//  GENERAL RULE: when you must hold multiple locks simultaneously,
+//  always acquire them in the same global order everywhere in the codebase.
+//  Assign a total order to your locks (e.g. by ID, by pointer address)
+//  and never deviate from it.
+// ═══════════════════════════════════════════════════════════════
+
+type Account struct {
+	id      int
+	mu      sync.Mutex
+	balance int
+}
+
+// transferDeadlock is the BROKEN version.
+// It locks `from` first then `to` — order depends on the caller.
+// Two concurrent opposite-direction transfers create a circular wait.
+func transferDeadlock(from, to *Account, amount int, done chan struct{}) {
+	from.mu.Lock()
+	// goroutine is now holding from.mu and about to request to.mu.
+	// if another goroutine holds to.mu and is waiting for from.mu → deadlock.
+	time.Sleep(1 * time.Millisecond) // widen the race window to make deadlock deterministic
+	to.mu.Lock()
+
+	from.balance -= amount
+	to.balance += amount
+
+	to.mu.Unlock()
+	from.mu.Unlock()
+	done <- struct{}{}
+}
+
+// transferSafe is the FIXED version.
+// Always lock the account with the lower ID first, regardless of direction.
+// Both goroutines now acquire locks in the same order — circular wait impossible.
+func transferSafe(from, to *Account, amount int, done chan struct{}) {
+	// enforce global lock order: lower ID always locked first
+	first, second := from, to
+	if from.id > to.id {
+		first, second = to, from // swap so lower-ID account is always locked first
+	}
+
+	first.mu.Lock()
+	second.mu.Lock()
+
+	from.balance -= amount
+	to.balance += amount
+
+	second.mu.Unlock()
+	first.mu.Unlock()
+	done <- struct{}{}
+}
+
+func deadlock() {
+	alice := &Account{id: 1, balance: 1000}
+	bob := &Account{id: 2, balance: 1000}
+
+	// ── BROKEN: demonstrate the deadlock ──────────────────────────
+	fmt.Println("  [deadlock] running BROKEN transfer (will deadlock)...")
+
+	done := make(chan struct{}, 2)
+	go transferDeadlock(alice, bob, 100, done) // goroutine A: locks alice → bob
+	go transferDeadlock(bob, alice, 200, done) // goroutine B: locks bob  → alice
+	// goroutine A holds alice.mu, waiting for bob.mu
+	// goroutine B holds bob.mu,   waiting for alice.mu  ← circular wait = deadlock
+
+	// use a timeout to detect the deadlock without hanging the whole demo
+	select {
+	case <-done:
+		<-done
+		fmt.Println("  [deadlock] BROKEN: unexpectedly completed (race lost)")
+	case <-time.After(50 * time.Millisecond):
+		fmt.Println("  [deadlock] BROKEN: confirmed — both goroutines stuck forever")
+		fmt.Printf("  [deadlock] BROKEN: alice=%d  bob=%d  (unchanged — no transfer occurred)\n",
+			alice.balance, bob.balance)
+	}
+
+	// ── FIXED: same scenario with consistent lock ordering ────────
+	alice2 := &Account{id: 1, balance: 1000}
+	bob2 := &Account{id: 2, balance: 1000}
+
+	fmt.Println("  [deadlock] running FIXED transfer (consistent lock order)...")
+
+	done2 := make(chan struct{}, 2)
+	go transferSafe(alice2, bob2, 100, done2) // alice → bob:  internally locks id-1 then id-2
+	go transferSafe(bob2, alice2, 200, done2) // bob  → alice: also locks id-1 then id-2
+	// both goroutines compete for alice2.mu (id=1) first —
+	// one wins, completes fully, releases both; the other then proceeds.
+	// No circular wait — structurally impossible with consistent ordering.
+
+	<-done2
+	<-done2
+	fmt.Printf("  [deadlock] FIXED: both transfers completed successfully\n")
+	fmt.Printf("  [deadlock] FIXED: alice=%d  (1000 - 100 + 200 = 1100)\n", alice2.balance)
+	fmt.Printf("  [deadlock] FIXED: bob=%d    (1000 - 200 + 100 =  900)\n", bob2.balance)
 }
