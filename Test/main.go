@@ -2,27 +2,30 @@ package main
 
 import (
 	"fmt"
+	"slices"
 )
 
-func maxArea(height []int) int {
-	left := 0
-	right := len(height) - 1
-	maxArea := 0
-	for left < right {
-		currArea := min(height[left], height[right]) * (right - left)
-		maxArea = max(maxArea, currArea)
-		if height[left] < height[right] {
-			left++
-		} else  {
-			right--
+func canAttendMeetings(intervals [][]int)bool {
+	slices.SortFunc(intervals, func (a, b []int) int {
+		return a[0] - b[0]
+	})
+	for i, time := range intervals {
+		if i < 1 {
+			continue
+		}
+		currStart := time[0]
+		prevEnd := intervals[i - 1][1] 
+		if currStart < prevEnd {
+			return false 
 		}
 	}
-	return maxArea
+	return true
 }
 
 func main() {
-	height := []int{1,8,6,2,5,4,8,3,7}
-	fmt.Println(maxArea(height))
-	height = []int{1, 1}
-	fmt.Println(maxArea(height))
+	intervals1 := [][]int{{1, 5}, {3, 9}, {6, 8}}
+	intervals2 := [][]int{{10, 12}, {6, 9}, {13, 15}}
+
+	fmt.Println(canAttendMeetings(intervals1))
+	fmt.Println(canAttendMeetings(intervals2))
 }
