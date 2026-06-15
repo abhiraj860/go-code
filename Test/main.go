@@ -1,30 +1,29 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"time"
+	"math"
 )
 
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	
-	go doTask(ctx)
-	time.Sleep(2 * time.Second)
-	cancel()
-	time.Sleep(2 * time.Second)
+func maxSum(nums []int, k int) int {
+	i, j := 0, 0
+	n := len(nums)
+	currSum := 0
+	maxSum := math.MinInt64
+	for j < n {
+		currSum += nums[j]
+		if j - i + 1 == k {
+			maxSum = max(maxSum, currSum)
+			currSum -= nums[i]
+			i++
+		}
+		j++
+	}
+	return maxSum
 }
 
-func doTask(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("Task Cancelled")
-			return
-		default:
-			time.Sleep(500 * time.Millisecond)
-			fmt.Println("Task Processing...")
-		}
-
-	}
+func main() {
+	nums := []int{2, 1, 5, 1, 3, 2}
+	k := 3
+	fmt.Println(maxSum(nums, k))
 }
