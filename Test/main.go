@@ -4,28 +4,25 @@ import (
 	"fmt"
 )
 
-func twoSum(nums []int, target int) bool {
-	i := 0
-	j := len(nums) - 1
-	for i < j {
-		sum := nums[i] + nums[j] 
-		if sum == target {
-			return true
-		} else if sum < target {
-			i++
-		} else {
-			j--
+func maxArea(height []int) int {
+	left := 0
+	right := len(height) - 1
+	maxArea := 0
+	for left < right {
+		currArea := min(height[left], height[right]) * (right - left)
+		maxArea = max(maxArea, currArea)
+		if height[left] < height[right] {
+			left++
+		} else  {
+			right--
 		}
 	}
-	return false
+	return maxArea
 }
 
 func main() {
-	nums1 := []int{1, 3, 4, 6, 8, 10, 13}
-	target1 := 13
-
-	nums2 := []int{1, 3, 4, 6, 8, 10, 13}
-	target2 := 6
-	fmt.Println(twoSum(nums1, target1))
-	fmt.Println(twoSum(nums2, target2))
+	height := []int{1,8,6,2,5,4,8,3,7}
+	fmt.Println(maxArea(height))
+	height = []int{1, 1}
+	fmt.Println(maxArea(height))
 }
