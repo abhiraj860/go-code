@@ -2,28 +2,30 @@ package main
 
 import (
 	"fmt"
-	"math"
 )
 
-func maxSum(nums []int, k int) int {
-	i, j := 0, 0
-	n := len(nums)
-	currSum := 0
-	maxSum := math.MinInt64
-	for j < n {
-		currSum += nums[j]
-		if j - i + 1 == k {
-			maxSum = max(maxSum, currSum)
-			currSum -= nums[i]
+func twoSum(nums []int, target int) bool {
+	i := 0
+	j := len(nums) - 1
+	for i < j {
+		sum := nums[i] + nums[j] 
+		if sum == target {
+			return true
+		} else if sum < target {
 			i++
+		} else {
+			j--
 		}
-		j++
 	}
-	return maxSum
+	return false
 }
 
 func main() {
-	nums := []int{2, 1, 5, 1, 3, 2}
-	k := 3
-	fmt.Println(maxSum(nums, k))
+	nums1 := []int{1, 3, 4, 6, 8, 10, 13}
+	target1 := 13
+
+	nums2 := []int{1, 3, 4, 6, 8, 10, 13}
+	target2 := 6
+	fmt.Println(twoSum(nums1, target1))
+	fmt.Println(twoSum(nums2, target2))
 }
