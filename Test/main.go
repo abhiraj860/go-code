@@ -1,31 +1,26 @@
 package main
 
-import (
-	"fmt"
-	"slices"
-)
+import "fmt"
 
-func canAttendMeetings(intervals [][]int)bool {
-	slices.SortFunc(intervals, func (a, b []int) int {
-		return a[0] - b[0]
-	})
-	for i, time := range intervals {
-		if i < 1 {
-			continue
-		}
-		currStart := time[0]
-		prevEnd := intervals[i - 1][1] 
-		if currStart < prevEnd {
-			return false 
+func binarySearch(nums []int, target int) int {
+	s := 0
+	e := len(nums) - 1
+	for s <= e {
+		mid := (s + e) / 2
+		if nums[mid] == target {
+			return mid
+		} else if nums[mid] < target {
+			s = mid + 1
+		} else {
+			e = mid - 1
 		}
 	}
-	return true
+	return -1
 }
 
 func main() {
-	intervals1 := [][]int{{1, 5}, {3, 9}, {6, 8}}
-	intervals2 := [][]int{{10, 12}, {6, 9}, {13, 15}}
-
-	fmt.Println(canAttendMeetings(intervals1))
-	fmt.Println(canAttendMeetings(intervals2))
+	nums := []int{-1, 0, 3, 5, 9, 12}
+	fmt.Println(binarySearch(nums, 9))
+	fmt.Println(binarySearch(nums, -1))
+	fmt.Println(binarySearch(nums, 2))
 }
