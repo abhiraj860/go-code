@@ -1,62 +1,57 @@
-package main
+package main 
 
 import (
 	"fmt"
 	"sync"
-	"time"
-	"math/rand"
 )
 
-type Job struct {
-	ID int
-	Payload string
-}
-
-type Result struct {
-	JobID int
-	Output string
-	Err error
-}
-
-func workerPool() {
-	const numberWorkers = 3
-	const numJobs = 10
-
-	jobs := make(chan Job, numJobs)
-	results := make(chan Result, numJobs)
-	
-	wg := sync.WaitGroup{}
-	for w := range numberWorkers {
-		wg.Add(1)
-		go func(workerID int) {
-			defer wg.Done()
-			for job := range jobs {
-				time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
-				results<- Result{
-					JobID: job.ID,
-					Output: fmt.Sprintf("worker-%d processed job %d", workerID, job.ID),
-				}
+func fanIn(in chan int, n int) [] chan int {
+	outs := make([] chan int, n)
+	for i := range n {
+		ch := make(chan int)
+		outs[i] = ch
+		go func(out chan<- int) {
+			for v := range in {
+				out <- v * v
 			}
-		}(w)
+			close(out)
+		}(ch)
 	}
+	return outs
+}
 
-
-
-	for i := range numJobs {
-		jobs <- Job{ID: i, Payload: fmt.Sprintf("data-%d", i)}
+func fanOut(outs [] chan int) chan int {
+	var wg sync.WaitGroup
+	out := make(chan int)
+	for i := range outs {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			for v := range outs[i] {
+				out <- v
+ 			}
+		}(i)
 	}
-	close(jobs)
-
 	go func() {
 		wg.Wait()
-		close(results)
+		close(out)
 	}()
-
-	for r := range results {
-		fmt.Printf("[worker-pool] %v\n", r.Output)
-	}
+	return out
 }
 
 func main() {
-	workerPool()
+	n := 5
+	in := make(chan int, n)
+	for i := range n {
+		in <- i + 1
+	}
+	close(in)
+	outs := fanIn(in, 3)
+	merged := fanOut(outs)
+
+	var result []int
+	for p := range merged{
+		result = append(result, p)
+	}
+	fmt.Println(result)
 }
