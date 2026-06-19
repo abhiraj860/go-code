@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -10,6 +11,7 @@ func main() {
 	k := 0
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	start := time.Now()
 	for cnt := range 6 {
 		wg.Add(1)
 		go func(id int) {
@@ -29,6 +31,7 @@ func main() {
 		mu.Unlock()
 		k++
 	}
-	 wg.Wait()
+	wg.Wait()
+	fmt.Println(time.Since(start))
 	fmt.Println(i)
 }
