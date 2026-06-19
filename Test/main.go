@@ -2,29 +2,33 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"sync"
 )
 
 func main() {
 	i := 0
-	j := 0
 	k := 0
 	var mu sync.Mutex
-	go func() {
-		for j < 100000 {
-			mu.Lock()		
-			i += 1
-			mu.Unlock()
-			j++
-		}
-	}()
+	var wg sync.WaitGroup
+	for cnt := range 6 {
+		wg.Add(1)
+		go func(id int) {
+			j := 0
+			defer wg.Done()
+			for j < 100000 {
+				mu.Lock()		
+				i += 1
+				mu.Unlock()
+				j++
+			}
+		}(cnt)
+	} 
 	for k < 100000 {
 		mu.Lock()
 		i += 1
 		mu.Unlock()
 		k++
 	}
-	time.Sleep(1000 * time.Millisecond)
+	 wg.Wait()
 	fmt.Println(i)
 }
