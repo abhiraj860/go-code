@@ -2,50 +2,38 @@ package main
 
 import (
 	"fmt"
+	"time"
+	"context"
+	"math/rand"
 )
 
-func generate(nums ...int) chan int {
-	outs := make(chan int)
-	go func() {
-		for _, v := range nums {
-			outs <- v
-		}
-		close(outs)
-	}() 
-	return outs
-}
-
-func double(src chan int) chan int {
-	out := make(chan int)
-	go func() {
-		for v := range src {
-			out <- 2 * v
-		}
-		close(out)
-	}()
-	return out
-}
-
-func filter(src chan int, threshold int) chan int {
-	out := make(chan int)
-	go func() {
-		for v := range src {
-			if v > threshold {
-				out <- v
-			}
-		}
-		close(out)
-	}()
-	return out
+func dbCall(ctx context.Context) (string, error) {
+	select {
+	case <-time.After(time.Duration(rand.Intn(50)) * time.Millisecond):
+		return "Done", nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }
 
 func main() {
-	src := generate(1, 2, 3, 4, 5)
-	transform := double(src)
-	filtered := filter(transform, 6)
-	result := []int{}
-	for v := range filtered {
-		result = append(result, v)
+	ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Millisecond)
+	defer cancel()
+	res, err := dbCall(ctx)
+	if err != nil {
+		fmt.Println("The activity was timed out")
+	} else {
+		fmt.Printf("Activity succeeded %v\n", res)
 	}
-	fmt.Println(result)
+
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 25 * time.Millisecond)
+	defer cancel2()
+
+	res2, err := dbCall(ctx2)
+	if err != nil {
+		fmt.Println("The activity was timed out")
+	} else {
+		fmt.Printf("Activity succeeded %v \n", res2)
+	}
 }
