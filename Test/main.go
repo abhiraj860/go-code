@@ -1,57 +1,51 @@
-package main 
+package main
 
 import (
 	"fmt"
-	"sync"
 )
 
-func fanIn(in chan int, n int) [] chan int {
-	outs := make([] chan int, n)
-	for i := range n {
-		ch := make(chan int)
-		outs[i] = ch
-		go func(out chan<- int) {
-			for v := range in {
-				out <- v * v
-			}
-			close(out)
-		}(ch)
-	}
+func generate(nums ...int) chan int {
+	outs := make(chan int)
+	go func() {
+		for _, v := range nums {
+			outs <- v
+		}
+		close(outs)
+	}() 
 	return outs
 }
 
-func fanOut(outs [] chan int) chan int {
-	var wg sync.WaitGroup
+func double(src chan int) chan int {
 	out := make(chan int)
-	for i := range outs {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			for v := range outs[i] {
-				out <- v
- 			}
-		}(i)
-	}
 	go func() {
-		wg.Wait()
+		for v := range src {
+			out <- 2 * v
+		}
+		close(out)
+	}()
+	return out
+}
+
+func filter(src chan int, threshold int) chan int {
+	out := make(chan int)
+	go func() {
+		for v := range src {
+			if v > threshold {
+				out <- v
+			}
+		}
 		close(out)
 	}()
 	return out
 }
 
 func main() {
-	n := 5
-	in := make(chan int, n)
-	for i := range n {
-		in <- i + 1
-	}
-	close(in)
-	outs := fanIn(in, 3)
-	merged := fanOut(outs)
-
-	var result []int
-	for p := range merged{
-		result = append(result, p)
+	src := generate(1, 2, 3, 4, 5)
+	transform := double(src)
+	filtered := filter(transform, 6)
+	result := []int{}
+	for v := range filtered {
+		result = append(result, v)
 	}
 	fmt.Println(result)
 }
