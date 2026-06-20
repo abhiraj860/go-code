@@ -1,25 +1,38 @@
 package main
 
 import (
+	"container/heap"
 	"fmt"
 	"math"
 )
 
 // ─────────────────────────────────────────────
-// SPLITWISE: Minimize number of transactions
+// SPLITWISE: Minimize number of transactions (priority-queue version)
 //
-// Step 1: Compute net balance per person
-//         net[i] = amount_paid - fair_share
-//         positive = creditor (owed money)
-//         negative = debtor  (owes money)
+// Why a heap instead of the slice-scan version:
+//   The original settle() walked creditors/debtors with two index
+//   pointers (i, j) over UNSORTED slices. That's not actually greedy —
+//   "pair index i with index j" has no relationship to "pair the
+//   biggest creditor with the biggest debtor." It happened to produce
+//   *a* valid settlement (balances still net to zero) but not
+//   necessarily the locally-greedy one, and result order was at the
+//   mercy of Go's map iteration, which is randomized.
 //
-// Step 2: Greedy — match max creditor with max debtor
-//         settle min(|debt|, |credit|) in one transaction
-//         repeat until all balances are zero
+//   A max-heap on each side gives O(log n) access to the current
+//   largest creditor/debtor on every step, so the greedy invariant
+//   (always settle biggest-against-biggest) actually holds.
 //
-// Time:  O(n^2) in worst case (n = number of people)
+// Step 1: Compute net balance per person.
+// Step 2: Push positives into a creditor max-heap, negatives into a
+//         debtor max-heap (ordered by absolute value).
+// Step 3: Pop top of each, settle min(|debt|, |credit|), push back
+//         whichever side has leftover balance, repeat.
+//
+// Time:  O(n log n)  — n pushes/pops, each O(log n)
 // Space: O(n)
 // ─────────────────────────────────────────────
+
+const epsilon = 1e-9 // floating point tolerance for "settled to zero"
 
 type Transaction struct {
 	from   string
@@ -27,31 +40,50 @@ type Transaction struct {
 	amount float64
 }
 
-func settle(balances map[string]float64) []Transaction {
-	// Separate into creditors (positive) and debtors (negative)
-	// Using slices of [name, amount] for in-place mutation
-	type entry struct {
-		name   string
-		amount float64
-	}
+// entry is a heap node. Both heaps reuse this type; each heap only ever
+// holds entries of one sign (all-positive or all-negative), so ordering
+// by absolute value is equivalent to ordering by "size of the balance"
+// within that group.
+type entry struct {
+	name   string
+	amount float64
+}
 
-	var creditors, debtors []entry
+// maxHeap orders entries by descending absolute amount — the heap.Interface
+// the stdlib expects is a min-heap by default, so Less is inverted here.
+type maxHeap []*entry
+
+func (h maxHeap) Len() int            { return len(h) }
+func (h maxHeap) Less(i, j int) bool  { return math.Abs(h[i].amount) > math.Abs(h[j].amount) }
+func (h maxHeap) Swap(i, j int)       { h[i], h[j] = h[j], h[i] }
+func (h *maxHeap) Push(x interface{}) { *h = append(*h, x.(*entry)) }
+func (h *maxHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	*h = old[:n-1]
+	return item
+}
+
+func settle(balances map[string]float64) []Transaction {
+	creditors := &maxHeap{}
+	debtors := &maxHeap{}
+
 	for name, bal := range balances {
-		if bal > 0 {
-			creditors = append(creditors, entry{name, bal})
-		} else if bal < 0 {
-			debtors = append(debtors, entry{name, bal})
+		switch {
+		case bal > epsilon:
+			heap.Push(creditors, &entry{name, bal})
+		case bal < -epsilon:
+			heap.Push(debtors, &entry{name, bal})
 		}
 	}
 
 	var result []Transaction
 
-	i, j := 0, 0
-	for i < len(creditors) && j < len(debtors) {
-		creditor := &creditors[i]
-		debtor := &debtors[j]
+	for creditors.Len() > 0 && debtors.Len() > 0 {
+		creditor := heap.Pop(creditors).(*entry)
+		debtor := heap.Pop(debtors).(*entry)
 
-		// Settle the smaller of the two amounts
 		amount := math.Min(creditor.amount, -debtor.amount)
 
 		result = append(result, Transaction{
@@ -61,14 +93,15 @@ func settle(balances map[string]float64) []Transaction {
 		})
 
 		creditor.amount -= amount
-		debtor.amount += amount // debtor.amount is negative, so adding brings it toward 0
+		debtor.amount += amount // debtor.amount is negative, so this moves it toward 0
 
-		// Fully settled — move pointer
-		if creditor.amount == 0 {
-			i++
+		// Whoever still has a nonzero balance goes back in their heap
+		// to be re-compared against the next round's max on the other side.
+		if creditor.amount > epsilon {
+			heap.Push(creditors, creditor)
 		}
-		if debtor.amount == 0 {
-			j++
+		if debtor.amount < -epsilon {
+			heap.Push(debtors, debtor)
 		}
 	}
 
@@ -102,7 +135,7 @@ func main() {
 
 	balances := map[string]float64{
 		"Alice":   600,
-		"Bob":    -300,
+		"Bob":     -300,
 		"Charlie": -300,
 	}
 
@@ -120,8 +153,8 @@ func main() {
 		amount float64
 		split  []string
 	}{
-		{"Alice", 900, []string{"Alice", "Bob", "Charlie"}}, // each owes 300
-		{"Bob", 600, []string{"Bob", "Charlie"}},            // each owes 300
+		{"Alice", 900, []string{"Alice", "Bob", "Charlie"}},   // each owes 300
+		{"Bob", 600, []string{"Bob", "Charlie"}},              // each owes 300
 		{"Charlie", 300, []string{"Alice", "Bob", "Charlie"}}, // each owes 100
 	}
 
@@ -140,7 +173,7 @@ func main() {
 	fmt.Println("\n=== Example 3: Circular debt (net zero) ===")
 
 	balances3 := map[string]float64{
-		"A": 0, // owes 10 to B, gets 10 from C → net 0
+		"A": 0,
 		"B": 0,
 		"C": 0,
 	}
@@ -148,6 +181,21 @@ func main() {
 	if len(txns3) == 0 {
 		fmt.Println("No transactions needed — all settled!")
 	}
+
+	// ── Example 4: Where greedy-by-size actually matters ──────────
+	// Demonstrates why "biggest creditor vs biggest debtor" (not index order)
+	// minimizes transaction count: 4 people, but it still resolves in 3 txns
+	// (n-1 is the theoretical floor for n non-zero balances).
+	fmt.Println("\n=== Example 4: Mixed magnitudes ===")
+
+	balances4 := map[string]float64{
+		"Dave":  500,
+		"Erin":  -50,
+		"Frank": -200,
+		"Grace": -250,
+	}
+	txns4 := settle(balances4)
+	printTransactions(txns4)
 }
 
 func printTransactions(txns []Transaction) {
