@@ -2,26 +2,32 @@ package main
 
 import (
 	"fmt"
-	"sync"
+	"time"
 )
 
 
 
 func main() {
-	var mu sync.RWMutex
-	data := make(map[string]int)
-	var wg sync.WaitGroup
-	wg.Add(1)
+	ch1 := make(chan string)
+	ch2 := make(chan string)
+
 	go func() {
-		defer wg.Done()
-		mu.Lock()
-		defer mu.Unlock()
-		data["key"] = 52
+		time.Sleep(20 * time.Millisecond)
+		ch1 <- "hello"
 	}()
-	wg.Wait()
-	mu.RLock()
-	value := data["key"]
-	mu.RUnlock()
-	fmt.Println(value)
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		ch2 <- "worls"
+	}()
+
+	select {
+	case msg1 := <-ch1:
+		fmt.Println("Msg1 ", msg1)
+	case msg1 := <- ch2:
+		fmt.Println("Msg2", msg1)
+	case <-time.After(100 * time.Millisecond):
+		fmt.Println("Time Out")
+	}
 }
 
