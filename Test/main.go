@@ -8,15 +8,20 @@ import (
 
 
 func main() {
+	var mu sync.Mutex
+	counter := 0
 	var wg sync.WaitGroup
-	for i :=  range 5 {
+
+	for range 1000 {
 		wg.Add(1)
-		go func(id int){
-			fmt.Printf("Worker id : %v \n", id)
-			wg.Done()
-		}(i)
+		go func() {
+			mu.Lock()
+			defer wg.Done()
+			defer mu.Unlock()
+			counter++
+		}()
 	}
 	wg.Wait()
-	fmt.Println("All worker completed")
+	fmt.Println(counter)
 }
 
