@@ -2,15 +2,21 @@ package main
 
 import (
 	"fmt"
+	"sync"
 )
 
 
 
 func main() {
-	ch := make(chan string, 2)
-	ch <- "Hello"
-	ch <- "World"
-	fmt.Println(<-ch)
-	fmt.Println(<-ch)
+	var wg sync.WaitGroup
+	for i :=  range 5 {
+		wg.Add(1)
+		go func(id int){
+			fmt.Printf("Worker id : %v \n", id)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	fmt.Println("All worker completed")
 }
 
