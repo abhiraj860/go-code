@@ -6,11 +6,11 @@ import (
 
 func main() {
 	val := 1
-	stack := []int{}
-	stack = append(stack, val)
-	fmt.Println(stack)
-	topVal := stack[len(stack) - 1]
-	fmt.Println(topVal)
-	stack = stack[:len(stack) - 1]
-	fmt.Println(stack)
+	q := []int{}
+	q = append(q, val)
+	fmt.Println(q)
+	frontVal := q[0]
+	fmt.Println(frontVal)
+	q = q[1:]
+	fmt.Println(q)
 }
