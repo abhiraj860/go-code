@@ -5,14 +5,10 @@ import (
 )
 
 func main() {
-	dq := []int{}
-	dq = append(dq, 1, 2, 3)
-	from := dq[0]
-	back := dq[len(dq) - 1]
-	fmt.Println(from, back)
-	// popback
-	dq = dq[:len(dq) - 1]
-	fmt.Println(dq)
-	dq = dq[1:]
-	fmt.Println(dq)
+	set := make(map[int]struct{})
+	set[1] = struct{}{}
+	set[2] = struct{}{}
+	if _, exists := set[1]; exists {
+		fmt.Println("1 exists")
+	}
 }
