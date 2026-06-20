@@ -17,7 +17,12 @@ func (h *IntHeap) Pop() any {
 	(*h) = (*h)[0:n - 1]
 	return x
 }
-
+func (h *IntHeap) Peek() (int, bool) {
+	if len(*h) == 0 {
+		return 0, false
+	}
+	return (*h)[0], true
+}
 
 func main() {
 	hea := &IntHeap{}
@@ -26,6 +31,8 @@ func main() {
 	for _, v := range arr {
 		heap.Push(hea, v)
 	}
+	val, _ := hea.Peek()
+	fmt.Println(val)
 	fmt.Println(heap.Pop(hea))
 	for hea.Len() > 0 {
 		fmt.Println(heap.Pop(hea))
