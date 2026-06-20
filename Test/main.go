@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	"time"
+	// "time"
 )
 
+
+
 func main() {
-	go func() {
-		fmt.Println("Hello from go routine")
-	}()
-	time.Sleep(100 * time.Millisecond)
-	fmt.Println("Finished main function thread")
+	result := make(chan int)
+	go func(a, b int) {
+		result <- a + b
+	}(3, 5)
+	fmt.Println(<-result)
 }
 
