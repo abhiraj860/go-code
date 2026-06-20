@@ -9,7 +9,7 @@ import (
 // SPLITWISE: Minimize number of transactions
 //
 // Step 1: Compute net balance per person
-//         net[i] = total_received - total_paid
+//         net[i] = amount_paid - fair_share
 //         positive = creditor (owed money)
 //         negative = debtor  (owes money)
 //
