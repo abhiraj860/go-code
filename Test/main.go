@@ -8,20 +8,20 @@ import (
 
 
 func main() {
-	var mu sync.Mutex
-	counter := 0
+	var mu sync.RWMutex
+	data := make(map[string]int)
 	var wg sync.WaitGroup
-
-	for range 1000 {
-		wg.Add(1)
-		go func() {
-			mu.Lock()
-			defer wg.Done()
-			defer mu.Unlock()
-			counter++
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		mu.Lock()
+		defer mu.Unlock()
+		data["key"] = 52
+	}()
 	wg.Wait()
-	fmt.Println(counter)
+	mu.RLock()
+	value := data["key"]
+	mu.RUnlock()
+	fmt.Println(value)
 }
 
