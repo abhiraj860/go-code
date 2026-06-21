@@ -2,12 +2,19 @@ package main
 
 import "fmt"
 
+func divide(a, b int) int {
+	if b == 0 {
+		panic("Cannot divide by zero")
+	}
+	return a / b
+}
+
+
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered:", r)
+			fmt.Println("recovered: ", r)
 		}
-	}()	
-
-	panic("boom")
+	}()
+	fmt.Println(divide(1 , 0))
 }
