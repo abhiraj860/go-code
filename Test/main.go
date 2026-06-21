@@ -2,38 +2,38 @@ package main
 
 import (
 	"fmt"
-	"context"
-	"sync"
+
 )
 
-func countTo(ctx context.Context, max int, wg *sync.WaitGroup) <-chan int {
-	ch := make(chan int)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer close(ch)
-		for i := range max {
-			select {
-			case <-ctx.Done():
-				fmt.Println("Here")
-				return
-			case ch<-i:
-			}
-		}
-	}()
-	return ch
+func process(v int) int {
+	return 5 * v
+}
+
+func processChannel(ch chan int) []int {
+	const conc = 10
+	result := make(chan int, conc)
+
+	for range conc {
+		go func() {
+			v := <-ch
+			result <- process(v)
+		}()
+	}
+	var out []int
+	for range conc {
+		out = append(out, <-result)
+	}
+	return out
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	ch := countTo(ctx, 10, &wg)	
-	for i := range ch {
-		if i > 7 {
-			break
-		}
-		fmt.Println(i)
+	ch := make(chan int, 10)
+	for i := range 10 {
+		ch <- i + 1
 	}
-	cancel()
-	wg.Wait()
+	result := processChannel(ch)
+
+	for _, v := range result {
+		fmt.Println(v)
+	}
 }
