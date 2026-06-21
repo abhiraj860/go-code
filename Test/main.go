@@ -2,22 +2,38 @@ package main
 
 import (
 	"fmt"
+	"context"
+	"sync"
 )
 
-func main() {
-	ch1 := make(chan int)
-	ch2 := make(chan int)
+func countTo(ctx context.Context, max int, wg *sync.WaitGroup) <-chan int {
+	ch := make(chan int)
+	wg.Add(1)
 	go func() {
-		inGoroutine := 1
-		ch1 <- inGoroutine
-		<-ch2
-		fmt.Println("goroutine")
-	}()	
-	inMain := 2
-	var fromGoroutine int
-	select {
-	case ch2 <- inMain:
-	case fromGoroutine = <-ch1:
+		defer wg.Done()
+		defer close(ch)
+		for i := range max {
+			select {
+			case <-ctx.Done():
+				fmt.Println("Here")
+				return
+			case ch<-i:
+			}
+		}
+	}()
+	return ch
+}
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	ch := countTo(ctx, 10, &wg)	
+	for i := range ch {
+		if i > 7 {
+			break
+		}
+		fmt.Println(i)
 	}
-	fmt.Println("main", inMain, fromGoroutine)
+	cancel()
+	wg.Wait()
 }
