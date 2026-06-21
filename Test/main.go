@@ -14,7 +14,10 @@ func main() {
 		fmt.Println("goroutine", inGoroutine, fromMain)
 	}()	
 	inMain := 2
-	ch2 <- inMain
-	fromGoroutine := <-ch1
+	var fromGoroutine int
+	select {
+	case ch2 <- inMain:
+	case fromGoroutine = <-ch1:
+	}
 	fmt.Println("main", inMain, fromGoroutine)
 }
