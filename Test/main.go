@@ -10,8 +10,8 @@ func main() {
 	go func() {
 		inGoroutine := 1
 		ch1 <- inGoroutine
-		fromMain := <-ch2
-		fmt.Println("goroutine", inGoroutine, fromMain)
+		<-ch2
+		fmt.Println("goroutine")
 	}()	
 	inMain := 2
 	var fromGoroutine int
