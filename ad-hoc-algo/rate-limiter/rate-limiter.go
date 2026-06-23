@@ -269,10 +269,3 @@ func main() {
 	swc := NewSlidingWindowCounter(10, 200*time.Millisecond)
 	simulate("Sliding Window Counter", swc.Allow, requests, delay)
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
