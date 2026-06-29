@@ -1,77 +1,92 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
-	"sort"
 	"fmt"
 )
-type HashRing struct {
-	ring map[int]string
-	sortedPositions []int
-	replicationFactor int
+
+type lrunode struct {
+	key, val int
+	prev, next *lrunode
 }
 
-func NewHashRing(replicationFactor int) *HashRing {
-	return &HashRing{
-		ring: make(map[int]string),
-		replicationFactor: replicationFactor,
-	}
+type lrucache struct {
+	cap int
+	cache map[int]*lrunode
+	head, tail *lrunode
 }
 
-func hash(key string) int {
-	digest := sha256.Sum256([]byte(key))
-	return int(binary.BigEndian.Uint64(digest[:8]))
+func newlrucache(cap int) *lrucache {
+	head := &lrunode{}
+	tail := &lrunode{}
+	head.next = tail
+	tail.prev = head
+	return &lrucache{cap:cap, cache: make(map[int]*lrunode), head:head, tail:tail}
 }
 
-func (h *HashRing) AddNode(name string) {
-	for i := range h.replicationFactor {
-		pos := hash(fmt.Sprintf("%s#%d", name, i))
-		h.ring[pos] = name
-		h.sortedPositions = append(h.sortedPositions, pos)
-	}
-	sort.Ints(h.sortedPositions)
+func (c *lrucache) remove(n * lrunode) {
+	n.prev.next = n.next
+	n.next.prev = n.prev
 }
 
-func (h *HashRing) RemoveNode(name string) {
-	for i := range h.replicationFactor {
-		pos := hash(fmt.Sprintf("%s#%d", name, i))
-		delete(h.ring, pos)
-	}
-	h.sortedPositions = h.sortedPositions[:0]
-	for pos := range h.ring {
-		h.sortedPositions = append(h.sortedPositions, pos)
-	}
-	sort.Ints(h.sortedPositions)
+func (c *lrucache) insertFront(n *lrunode) {
+	n.next = c.head.next
+	n.prev = c.head
+	c.head.next.prev = n
+	c.head.next = n
 }
 
-func (h *HashRing) GetNode(key string) string {
-	if len(h.sortedPositions) == 0 {
-		return ""
+func (c *lrucache) moveToFront(n *lrunode) {
+	c.remove(n)
+	c.insertFront(n)
+}
+
+func (c *lrucache) get(key int) int {
+	if node, ok := c.cache[key]; ok {
+		c.moveToFront(node)
+		return node.val
 	}
-	pos := hash(key)
-	idx := sort.Search(len(h.sortedPositions), func(i int) bool {
-		return h.sortedPositions[i] >= pos
-	})
-	if idx == len(h.sortedPositions) {
-		idx = 0
+	return -1
+}
+
+func (c *lrucache) put(key, val int) {
+	if node, ok := c.cache[key]; ok {
+		node.val = val
+		c.moveToFront(node)
+		return 
 	}
-	return h.ring[h.sortedPositions[idx]]
+	if len(c.cache) == c.cap {
+		lru := c.tail.prev
+		c.remove(lru)
+		delete(c.cache, lru.key)
+	}
+	node := &lrunode{key:key, val:val}
+	c.insertFront(node)
+	c.cache[key] = node
 }
 
 
 func main() {
-	ring := NewHashRing(3)
-	ring.AddNode("node-A")
-	ring.AddNode("node-B")
-	ring.AddNode("node-C")
-
-	keys := []string{"user:13", "user:42", "product:42", "order:99", "session:xyz"}
-	for _, key := range keys {
-		fmt.Printf("%s -> %s\n", key, ring.GetNode(key))
-	}
-	ring.RemoveNode("node-B")
-	for _, key := range keys {
-		fmt.Printf("%s -> %s\n", key, ring.GetNode(key))
-	}
+	fmt.Println("LRU")
+	lru := newlrucache(2)
+	lru.put(1, 10)
+	lru.put(2, 20)
+	fmt.Println(lru.get(1))
+	lru.put(3, 30)
+	fmt.Println(lru.get(2))
+	fmt.Println(lru.get(3))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
