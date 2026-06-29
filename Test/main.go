@@ -2,91 +2,85 @@ package main
 
 import (
 	"fmt"
+	"container/list"
 )
 
-type lrunode struct {
-	key, val int
-	prev, next *lrunode
+type LFUEntry struct {
+	key, val, freq int
 }
 
-type lrucache struct {
-	cap int
-	cache map[int]*lrunode
-	head, tail *lrunode
+type LFUCache struct {
+	cap, minFreq int
+	keyMap map[int]*list.Element
+	freqMap map[int]*list.List
 }
 
-func newlrucache(cap int) *lrucache {
-	head := &lrunode{}
-	tail := &lrunode{}
-	head.next = tail
-	tail.prev = head
-	return &lrucache{cap:cap, cache: make(map[int]*lrunode), head:head, tail:tail}
-}
-
-func (c *lrucache) remove(n * lrunode) {
-	n.prev.next = n.next
-	n.next.prev = n.prev
-}
-
-func (c *lrucache) insertFront(n *lrunode) {
-	n.next = c.head.next
-	n.prev = c.head
-	c.head.next.prev = n
-	c.head.next = n
-}
-
-func (c *lrucache) moveToFront(n *lrunode) {
-	c.remove(n)
-	c.insertFront(n)
-}
-
-func (c *lrucache) get(key int) int {
-	if node, ok := c.cache[key]; ok {
-		c.moveToFront(node)
-		return node.val
+func NewLFUCache(cap int) *LFUCache {
+	return &LFUCache{
+		cap: cap,
+		keyMap: make(map[int]*list.Element),
+		freqMap: make(map[int]*list.List),
 	}
-	return -1
 }
 
-func (c *lrucache) put(key, val int) {
-	if node, ok := c.cache[key]; ok {
-		node.val = val
-		c.moveToFront(node)
+func (c *LFUCache) getList(freq int) *list.List {
+	if c.freqMap[freq] == nil {
+		c.freqMap[freq] = list.New()
+	}
+	return c.freqMap[freq]
+}
+
+func (c *LFUCache) increment(elem *list.Element) {
+	entry := elem.Value.(*LFUEntry)
+	freq := entry.freq
+	c.getList(freq).Remove(elem)
+	if c.freqMap[freq].Len() == 0 {
+		delete(c.freqMap, freq)
+		if c.minFreq == freq {
+			c.minFreq++
+		}
+	}
+	entry.freq++
+	newElem := c.getList(entry.freq).PushFront(entry)
+	c.keyMap[entry.key] = newElem
+}
+
+func (c *LFUCache) Get(key int) int {
+	elem, ok := c.keyMap[key]
+	if !ok {
+		return -1
+	}
+	c.increment(elem)
+	return c.keyMap[key].Value.(*LFUEntry).val
+}
+
+func (c *LFUCache) Put(key, val int) {
+	 if c.cap == 0 {
 		return 
-	}
-	if len(c.cache) == c.cap {
-		lru := c.tail.prev
-		c.remove(lru)
-		delete(c.cache, lru.key)
-	}
-	node := &lrunode{key:key, val:val}
-	c.insertFront(node)
-	c.cache[key] = node
+	 }
+	 if elem, ok := c.keyMap[key]; ok {
+		elem.Value.(*LFUEntry).val = val
+		c.increment(elem)
+		return
+	 }
+	 if len(c.keyMap) == c.cap {
+		lst := c.freqMap[c.minFreq]
+		evicted := lst.Back()
+		lst.Remove(evicted)
+		if lst.Len() == 0 {
+			delete(c.freqMap, c.minFreq)
+		}
+		delete(c.keyMap, evicted.Value.(*LFUEntry).key)
+	 }
+	 entry := &LFUEntry{key:key, val : val, freq:1}
+	 elem := c.getList(1).PushFront(entry)
+	 c.keyMap[key] = elem
+	 c.minFreq = 1
+
 }
 
 
 func main() {
-	fmt.Println("LRU")
-	lru := newlrucache(2)
-	lru.put(1, 10)
-	lru.put(2, 20)
-	fmt.Println(lru.get(1))
-	lru.put(3, 30)
-	fmt.Println(lru.get(2))
-	fmt.Println(lru.get(3))
+	fmt.Println("LFU")
+	
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
