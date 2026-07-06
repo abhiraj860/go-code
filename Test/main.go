@@ -2,31 +2,45 @@ package main
 
 import (
 	"fmt"
-	"math"
 )
 
+func midN(mid int, n int, m int) int64 {
+	ans := int64(1)
+	for i := 1; i <= n; i++ {
+		ans = ans * int64(mid)
+		if ans > int64(m) {
+			return 2
+		} 
+	}
+	if ans == int64(m) {
+		return 1
+	}
+	if ans < int64(m) {
+		return 0
+	}
+	return ans
+}
 
-func main() {
-	nums := []int{3,4,5,6, 1,2}
+func findNthRoot(n int, m int) int {
 	low := 0
-	high := len(nums) - 1
-	ans := math.MaxInt32
-	indx := -1
+	high := m
 	for low <= high {
 		mid := low + (high - low) / 2
-		if nums[mid] <= nums[high] {
-			if ans >= nums[mid] {
-				ans = nums[mid]
-				indx = mid
-			}
-			high = mid - 1
-		} else {
-			if ans <= nums[low] {
-				ans = nums[low]
-				indx = low
-			}
+		val := midN(mid, n, m)
+		switch val {
+		case 1:
+			return mid
+		case 0:
 			low = mid + 1
+		default:
+			high = mid - 1
 		}
 	}
-	fmt.Println(indx)
+	return -1
+}
+
+func main() {
+	n := 3
+	m := 343
+	fmt.Println(findNthRoot(n, m))
 }
