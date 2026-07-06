@@ -1,37 +1,29 @@
-// Abstraction
-
 package main
 
-type PaymentMethod interface {
-	Process(amount float64) bool
+type DriveTrain interface {
+	Start()
 }
 
-type CreditCardPayment struct{}
+type GasEngine struct {}
 
-func (CreditCardPayment) Process(amount float64) bool {
-	_ = amount
-	return true
+func (GasEngine) Start() {
+
 }
 
-type PayPalPayment struct{}
+type ElectricMotor struct {}
 
-func (PayPalPayment) Process(amount float64) bool {
-	_ = amount
-	return true
+func (ElectricMotor) Start() {
+
 }
 
-type GoodOrder struct {
-	total float64
+type CompositionCar struct {
+	driveTrain DriveTrain
 }
 
-type OrderServiceGood struct {
-	paymentMethod PaymentMethod
+func NewCompositionCar(driveTrain DriveTrain) *CompositionCar {
+	return &CompositionCar{driveTrain: driveTrain}
 }
 
-func NewOrderServiceGood(method PaymentMethod) *OrderServiceGood {
-	return &OrderServiceGood{paymentMethod: method}
-}
-
-func (s *OrderServiceGood) Checkout(order GoodOrder) {
-	s.paymentMethod.Process(order.total)
+func (c *CompositionCar) Start() {
+	c.driveTrain.Start()
 }
