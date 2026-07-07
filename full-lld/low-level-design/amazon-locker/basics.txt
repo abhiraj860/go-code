@@ -1,0 +1,249 @@
+Requirements:
+1. Carrier deposits a package by specifying size (small, medium, large)
+   - System assigns an available compartment of matching size
+   - Opens compartment and returns access token, or error if no space
+2. Upon successful deposit, an access token is generated and returned
+   - One access token per package
+3. User retrieves package by entering access token
+   - System validates code and opens compartment
+   - Throws specific error if code is invalid or expired
+4. Access tokens expire after 7 days
+   - Expired codes are rejected if used for pickup
+   - Package remains in compartment until staff removes it
+5. Staff can open all expired compartments to manually handle packages
+   - System opens all compartments with expired tokens
+   - Staff physically removes packages and returns them to sender
+6. Invalid access tokens are rejected with clear error messages
+   - Wrong code, already used, or expired - user gets specific feedback
+
+Out of scope:
+- How the package gets to the locker (delivery logistics)
+- How the access token reaches the customer (SMS/email notification)
+- Lockout after failed access token attempts
+- UI/rendering layer
+- Multiple locker stations
+- Payment or pricing
+
+AccessToken.go
+
+package main
+
+import "time"
+
+type AccessToken struct {
+	code       string
+	expiration time.Time
+	compartment *Compartment
+}
+
+func NewAccessToken(code string, expiration time.Time, compartment *Compartment) *AccessToken {
+	return &AccessToken{
+		code:        code,
+		expiration:  expiration,
+		compartment: compartment,
+	}
+}
+
+func (a *AccessToken) IsExpired() bool {
+	return !time.Now().Before(a.expiration)
+}
+
+func (a *AccessToken) GetCompartment() *Compartment {
+	return a.compartment
+}
+
+func (a *AccessToken) GetCode() string {
+	return a.code
+}
+
+
+Compartment.go
+
+
+package main
+
+type Compartment struct {
+	size     Size
+	occupied bool
+}
+
+func NewCompartment(size Size) *Compartment {
+	return &Compartment{
+		size:     size,
+		occupied: false,
+	}
+}
+
+func (c *Compartment) GetSize() Size {
+	return c.size
+}
+
+func (c *Compartment) IsOccupied() bool {
+	return c.occupied
+}
+
+func (c *Compartment) MarkOccupied() {
+	c.occupied = true
+}
+
+func (c *Compartment) MarkFree() {
+	c.occupied = false
+}
+
+func (c *Compartment) Open() {
+}
+
+
+
+
+Locker.go
+
+
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+type Locker struct {
+	compartments       []*Compartment
+	accessTokenMapping map[string]*AccessToken
+}
+
+func NewLocker(compartments []*Compartment) *Locker {
+	return &Locker{
+		compartments:       compartments,
+		accessTokenMapping: make(map[string]*AccessToken),
+	}
+}
+
+func (l *Locker) DepositPackage(size Size) (string, error) {
+	compartment := l.getAvailableCompartment(size)
+	if compartment == nil {
+		return "", fmt.Errorf("no available compartment of size %s", size)
+	}
+
+	compartment.Open()
+	compartment.MarkOccupied()
+	accessToken := l.generateAccessToken(compartment)
+	l.accessTokenMapping[accessToken.GetCode()] = accessToken
+
+	return accessToken.GetCode(), nil
+}
+
+func (l *Locker) Pickup(tokenCode string) error {
+	if tokenCode == "" {
+		return fmt.Errorf("invalid access token code")
+	}
+
+	accessToken, exists := l.accessTokenMapping[tokenCode]
+	if !exists {
+		return fmt.Errorf("invalid access token code")
+	}
+
+	if accessToken.IsExpired() {
+		return fmt.Errorf("access token has expired")
+	}
+
+	compartment := accessToken.GetCompartment()
+	compartment.Open()
+	l.clearDeposit(accessToken)
+	return nil
+}
+
+func (l *Locker) OpenExpiredCompartments() {
+	for _, accessToken := range l.accessTokenMapping {
+		if accessToken.IsExpired() {
+			compartment := accessToken.GetCompartment()
+			compartment.Open()
+		}
+	}
+}
+
+func (l *Locker) getAvailableCompartment(size Size) *Compartment {
+	for _, c := range l.compartments {
+		if c.GetSize() == size && !c.IsOccupied() {
+			return c
+		}
+	}
+	return nil
+}
+
+func (l *Locker) generateAccessToken(compartment *Compartment) *AccessToken {
+	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+	expiration := time.Now().Add(7 * 24 * time.Hour)
+	return NewAccessToken(code, expiration, compartment)
+}
+
+func (l *Locker) clearDeposit(accessToken *AccessToken) {
+	compartment := accessToken.GetCompartment()
+	compartment.MarkFree()
+	delete(l.accessTokenMapping, accessToken.GetCode())
+}
+
+
+Size.go
+
+package main
+
+type Size string
+
+const (
+	Small  Size = "SMALL"
+	Medium Size = "MEDIUM"
+	Large  Size = "LARGE"
+)
+
+
+
+
+
+
+==============================================================================================
+Verification
+==============================================================================================
+Locker has compartments A (SMALL), B (MEDIUM), C (LARGE), all with occupied = false. AccessToken map is empty.
+Deposit a medium package:
+
+Deposit Package (Medium)
+Initial: compartments=[A, B, C], accessTokenMapping={}
+
+getAvailableCompartment(MEDIUM) → Compartment B (size matches, not occupied)
+B.open() → triggers hardware unlock
+B.markOccupied() → B.occupied = true
+generateAccessToken(B) → AccessToken("ABC123", expiration=now+7days, compartment=B)
+accessTokenMapping.put("ABC123", accessToken) → map now has entry
+
+Result: "ABC123"
+State: B.occupied=true, accessTokenMapping={"ABC123" → AccessToken}
+
+Notice how each Compartment manages its own occupied state, and the door opens immediately.
+==============================================================================================
+Successful Pickup
+Pickup:
+accessTokenMapping.get("ABC123") → AccessToken exists
+accessToken.isExpired() → now < expiration, returns false
+accessToken.getCompartment() → returns B
+B.open() → triggers hardware unlock
+clearDeposit(accessToken):
+  - accessToken.getCompartment() → returns B
+  - B.markFree() → B.occupied = false
+  - accessTokenMapping.remove("ABC123")
+
+Result: void (compartment opened)
+State: B.occupied=false, accessTokenMapping={}
+Both cleanup steps executed, and the physical door opened.
+==============================================================================================
+Expired pickup attempt (8 days later):
+Pickup:
+accessTokenMapping.get("ABC123") → AccessToken still exists
+accessToken.isExpired() → now > expiration, returns true
+throw Error("Access token has expired")
+
+Result: Error thrown (no compartment opened)
+State: B.occupied=true, accessTokenMapping={"ABC123" → AccessToken (expired)}
+
+The expired token stays in the mapping and the compartment remains occupied. Staff would later call openExpiredCompartments() to physically retrieve the package, then call a cleanup method to free the compartment and remove the token.
+==============================================================================================

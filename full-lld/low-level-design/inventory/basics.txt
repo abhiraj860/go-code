@@ -1,0 +1,117 @@
+Requirements:
+1. Track inventory for products across multiple warehouses
+2. Add stock to a specific warehouse (receiving shipments)
+3. Remove stock from a specific warehouse (fulfilling orders)
+4. Check availability: given a product and quantity, return which warehouses can fulfill it
+5. Transfer stock between warehouses
+6. Low-stock alerts
+7. Reject operations that would result in negative inventory
+8. System must be thread-safe to handle concurrent operations
+
+Out of Scope:
+- Product catalog management (products exist externally)
+- Order processing / payment / serviceability
+- Persistence
+
+===============================================================================================
+Test Case 1: Alert threshold crossing behavior
+===============================================================================================
+When testing the alert logic, we're verifying that alerts fire when crossing the threshold downward, don't fire duplicates while stock stays low, and fire again if stock recovers and then drops again.
+Setup: Warehouse with 15 widgets, alert threshold at 10
+Initial: inventory["WIDGET"] = 15
+
+Operation: removeStock("WIDGET", 6)
+  previousQty = 15
+  newQty = 15 - 6 = 9
+  getAlertsToFire(15, 9):
+    - previousQty=15 >= threshold=10 AND newQty=9 < threshold=10
+    - Crossed threshold downward! Fire alert
+  Result: Alert fires
+
+Operation: removeStock("WIDGET", 2)
+  previousQty = 9
+  newQty = 9 - 2 = 7
+  getAlertsToFire(9, 7):
+    - previousQty=9 < threshold=10, condition is false
+    - No crossing occurred (already below threshold)
+  Result: No alert (no duplicate)
+
+Operation: addStock("WIDGET", 15)
+  previousQty = 7
+  newQty = 7 + 15 = 22
+  getAlertsToFire(7, 22):
+    - previousQty=7 < threshold=10, condition is false
+    - No downward crossing (stock is rising)
+  Result: No alert (stock recovering)
+
+Operation: removeStock("WIDGET", 13)
+  previousQty = 22
+  newQty = 22 - 13 = 9
+  getAlertsToFire(22, 9):
+    - previousQty=22 >= threshold=10 AND newQty=9 < threshold=10
+    - Crossed threshold downward again! Fire alert
+  Result: Alert fires (naturally reset by recovery)
+
+This confirms the crossing check works. We get an alert when stock first drops below 10, no duplicates while it stays low, and another alert fires if stock recovers above 10 and then drops below again. No state tracking needed.
+
+====================================================================================================
+Test Case 2: Atomic transfer with proper locking
+====================================================================================================
+When testing transfers, we're wanting to verify that the operation is atomic across both warehouses - no other thread sees an intermediate state where inventory is missing from both.
+Setup: EAST has 7 widgets, WEST has 0 widgets
+Operation: transfer("WIDGET", "EAST", "WEST", 5)
+
+InventoryManager.transfer:
+  Lock warehouses in consistent order (EAST < WEST alphabetically)
+
+  synchronized(EAST)
+    synchronized(WEST)
+      EAST.removeStock("WIDGET", 5):
+        currentQty = 7
+        7 >= 5, sufficient stock
+        inventory["WIDGET"] = 2
+        return true
+
+      removeStock succeeded, proceed:
+
+      WEST.addStock("WIDGET", 5):
+        currentQty = 0
+        inventory["WIDGET"] = 5
+
+  Release both locks
+
+Result: EAST = 2, WEST = 5 (transfer complete, operation was atomic)
+Both warehouses were locked throughout the entire operation. No other thread could read from EAST or WEST during the transfer, so there's no observable state where the 5 units are missing from both. The lock ordering by warehouse ID prevents deadlock if another thread tries to transfer in the opposite direction.
+
+====================================================================================================
+Test Case 3: Validation prevents negative inventory
+====================================================================================================
+When testing validation, we're wanting to verify that we properly reject operations that would violate the "no negative inventory" invariant.
+Setup: EAST has 2 widgets, WEST has 5 widgets
+Operation: transfer("WIDGET", "EAST", "WEST", 10)
+
+InventoryManager.transfer:
+  synchronized(EAST)
+    synchronized(WEST)
+      EAST.removeStock("WIDGET", 10):
+        currentQty = 2
+        2 < 10, insufficient stock
+        return false
+
+      removeStock returned false, abort transfer:
+      return false
+
+Result: EAST still has 2, WEST still has 5 (no state changed)
+
+Operation: getWarehousesWithAvailability("WIDGET", 4)
+
+  Check EAST: 2 < 4, return false
+  Check WEST: 5 >= 4, return true
+
+  return ["WEST"]
+
+Result: Only WEST can fulfill a 4-unit order
+
+The transfer correctly rejected the operation because EAST only had 2 units. Even though we locked both warehouses, we validated before making any changes, so both warehouses are unchanged. Then getWarehousesWithAvailability correctly identified that only WEST can fulfill a 4-unit order.
+These three cases verify the core invariants: alerts fire correctly without duplicates, transfers are atomic and deadlock-free, and we never allow negative inventory.
+================================================================================================================================================================

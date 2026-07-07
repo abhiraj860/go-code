@@ -1,0 +1,58 @@
+Requirements:
+1. System manages 3 elevators serving 10 floors (0-9)
+2. Users can request an elevator from any floor (hall call). System decides which elevator to dispatch.
+3. Once inside, users can select one or more destination floors
+4. Simulation runs in discrete time steps (e.g., a `step()` or `tick()` call advances time)
+5. Elevator stops come in two types:
+    - Hall calls: Request from a floor with direction (UP or DOWN)
+    - Destination: Request from inside elevator (no direction specified)
+6. System handles multiple concurrent pickup requests across floors
+7. Invalid requests should be rejected (return false)
+    - Non-existent floor numbers
+8. Requests for the current floor are treated as a no-op / already served (doors out of scope)
+
+Out of scope:
+- Weight capacity and passenger limits
+- Door open/close mechanics
+- Emergency stop functionality
+- Dynamic floor/elevator configuration
+- UI/rendering layer
+
+=========================================================================================================
+VERIFICATION
+=========================================================================================================
+Elevator is on floor 3, going UP, with requests Request(5, PICKUP_UP) and Request(7, DESTINATION).
+Tick - By - Tick Execution
+Tick 0: currentFloor=3, direction=UP, requests={Request(5, PICKUP_UP), Request(7, DESTINATION)}
+  - Not at a stop, move up
+Tick 1: currentFloor=4, direction=UP, requests={Request(5, PICKUP_UP), Request(7, DESTINATION)}
+  - Not at a stop, move up
+Tick 2: currentFloor=5, direction=UP, requests={Request(5, PICKUP_UP), Request(7, DESTINATION)}
+  - At floor 5! Check for Request(5, PICKUP_UP) - found! Remove it
+  - requests={Request(7, DESTINATION)}, still have requests ahead, stay UP
+  - Don't move this tick (we just stopped)
+Tick 3: currentFloor=5, direction=UP, requests={Request(7, DESTINATION)}
+  - Not at a stop, move up
+Tick 4: currentFloor=6, direction=UP, requests={Request(7, DESTINATION)}
+  - Not at a stop, move up
+Tick 5: currentFloor=7, direction=UP, requests={Request(7, DESTINATION)}
+  - At floor 7! Check for Request(7, DESTINATION) - found! Remove it
+  - requests={}, no more requests, go IDLE
+  - Don't move this tick
+Tick 6: currentFloor=7, direction=IDLE, requests={}
+  - No requests, stay idle
+=========================================================================================================
+Now someone on floor 2 presses the call button going DOWN. The controller calls requestElevator(2, DOWN), which dispatches to our elevator, adding Request(2, PICKUP_DOWN).
+Tick - by - Tick Execution
+Tick 7: currentFloor=7, direction=IDLE, requests={Request(2, PICKUP_DOWN)}
+  - requests not empty, pick direction
+  - nearest request is floor 2, which is < 7, so direction=DOWN
+  - hasRequestsAhead(DOWN)? Yes, Request(2, PICKUP_DOWN) is below us
+  - Move down
+Tick 8: currentFloor=6, direction=DOWN, requests={Request(2, PICKUP_DOWN)}
+  - Not at a stop, move down
+Tick 9: currentFloor=5, direction=DOWN, requests={Request(2, PICKUP_DOWN)}
+  - Not at a stop, move down
+...continues until reaching floor 2...
+Notice how the elevator doesn't start moving until tick 7, after it receives the new request. The IDLE state is crucial.
+=========================================================================================================
