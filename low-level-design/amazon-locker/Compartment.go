@@ -30,3 +30,4 @@ func (c *Compartment) MarkFree() {
 
 func (c *Compartment) Open() {
 }
+

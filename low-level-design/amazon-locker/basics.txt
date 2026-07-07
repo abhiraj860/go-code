@@ -24,6 +24,183 @@ Out of scope:
 - Multiple locker stations
 - Payment or pricing
 
+AccessToken.go
+
+package main
+
+import "time"
+
+type AccessToken struct {
+	code       string
+	expiration time.Time
+	compartment *Compartment
+}
+
+func NewAccessToken(code string, expiration time.Time, compartment *Compartment) *AccessToken {
+	return &AccessToken{
+		code:        code,
+		expiration:  expiration,
+		compartment: compartment,
+	}
+}
+
+func (a *AccessToken) IsExpired() bool {
+	return !time.Now().Before(a.expiration)
+}
+
+func (a *AccessToken) GetCompartment() *Compartment {
+	return a.compartment
+}
+
+func (a *AccessToken) GetCode() string {
+	return a.code
+}
+
+
+Compartment.go
+
+
+package main
+
+type Compartment struct {
+	size     Size
+	occupied bool
+}
+
+func NewCompartment(size Size) *Compartment {
+	return &Compartment{
+		size:     size,
+		occupied: false,
+	}
+}
+
+func (c *Compartment) GetSize() Size {
+	return c.size
+}
+
+func (c *Compartment) IsOccupied() bool {
+	return c.occupied
+}
+
+func (c *Compartment) MarkOccupied() {
+	c.occupied = true
+}
+
+func (c *Compartment) MarkFree() {
+	c.occupied = false
+}
+
+func (c *Compartment) Open() {
+}
+
+
+
+
+Locker.go
+
+
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+type Locker struct {
+	compartments       []*Compartment
+	accessTokenMapping map[string]*AccessToken
+}
+
+func NewLocker(compartments []*Compartment) *Locker {
+	return &Locker{
+		compartments:       compartments,
+		accessTokenMapping: make(map[string]*AccessToken),
+	}
+}
+
+func (l *Locker) DepositPackage(size Size) (string, error) {
+	compartment := l.getAvailableCompartment(size)
+	if compartment == nil {
+		return "", fmt.Errorf("no available compartment of size %s", size)
+	}
+
+	compartment.Open()
+	compartment.MarkOccupied()
+	accessToken := l.generateAccessToken(compartment)
+	l.accessTokenMapping[accessToken.GetCode()] = accessToken
+
+	return accessToken.GetCode(), nil
+}
+
+func (l *Locker) Pickup(tokenCode string) error {
+	if tokenCode == "" {
+		return fmt.Errorf("invalid access token code")
+	}
+
+	accessToken, exists := l.accessTokenMapping[tokenCode]
+	if !exists {
+		return fmt.Errorf("invalid access token code")
+	}
+
+	if accessToken.IsExpired() {
+		return fmt.Errorf("access token has expired")
+	}
+
+	compartment := accessToken.GetCompartment()
+	compartment.Open()
+	l.clearDeposit(accessToken)
+	return nil
+}
+
+func (l *Locker) OpenExpiredCompartments() {
+	for _, accessToken := range l.accessTokenMapping {
+		if accessToken.IsExpired() {
+			compartment := accessToken.GetCompartment()
+			compartment.Open()
+		}
+	}
+}
+
+func (l *Locker) getAvailableCompartment(size Size) *Compartment {
+	for _, c := range l.compartments {
+		if c.GetSize() == size && !c.IsOccupied() {
+			return c
+		}
+	}
+	return nil
+}
+
+func (l *Locker) generateAccessToken(compartment *Compartment) *AccessToken {
+	code := fmt.Sprintf("%06d", rand.Intn(1000000))
+	expiration := time.Now().Add(7 * 24 * time.Hour)
+	return NewAccessToken(code, expiration, compartment)
+}
+
+func (l *Locker) clearDeposit(accessToken *AccessToken) {
+	compartment := accessToken.GetCompartment()
+	compartment.MarkFree()
+	delete(l.accessTokenMapping, accessToken.GetCode())
+}
+
+
+Size.go
+
+package main
+
+type Size string
+
+const (
+	Small  Size = "SMALL"
+	Medium Size = "MEDIUM"
+	Large  Size = "LARGE"
+)
+
+
+
+
+
+
 ==============================================================================================
 Verification
 ==============================================================================================

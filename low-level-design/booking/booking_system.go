@@ -119,3 +119,4 @@ func generateConfirmationID() string {
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)
 }
+

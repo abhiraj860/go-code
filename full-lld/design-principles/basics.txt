@@ -1,0 +1,206 @@
+General Principles
+- KISS - Start simple, add complexity only when needed
+- DRY - Reduce duplication, simplify maintenance
+- YAGNI - Build for today, not hypothetical future
+- Separation of Concerns - Enable independent testing and changes
+- Law of Demeter - Reduce coupling, hide internal structures
+
+SOLID Principles
+- SRP - Keep Classes focussed on one responsibility
+- OCP - Support future requirements without modifying existing code
+- LSP - Prevent brittle hierarchies that break at runtime
+- ISP - Keep interfaces clean and focussed
+- DIP - Decouple business logic from implementation details
+
+
+
+DIP.go
+// SOLID Principles
+// DIP - Decouple business logic from implementation details
+
+package main
+
+type MessageSender interface {
+	Send(message string)
+}
+
+type EmailMessageSender struct{}
+
+func (EmailMessageSender) Send(message string) {
+	_ = message
+}
+
+type NotificationServiceGood struct {
+	sender MessageSender
+}
+
+func NewNotificationServiceGood(sender MessageSender) *NotificationServiceGood {
+	return &NotificationServiceGood{sender: sender}
+}
+
+func (s *NotificationServiceGood) Notify(message string) {
+	s.sender.Send(message)
+}
+
+
+
+ISP.go
+// SOLID Principles
+// ISP - Keep interfaces clean and focussed
+
+package main
+
+type Workable interface {
+	Work()
+}
+
+type Feedable interface {
+	Eat()
+}
+
+type Restable interface {
+	Sleep()
+}
+ 
+
+type Human struct{}
+
+func (Human) Work() {}
+func (Human) Eat() {}
+func (Human) Sleep() {}
+
+type Robot struct{}
+
+func (Robot) Work() {}
+
+
+
+
+
+LSP.go
+// SOLID Principles
+// LSP - Prevent brittle hierarchies that break at runtime
+
+package main
+
+type BirdGood interface{
+	Eat()
+}
+
+type FlyingBird interface {
+	BirdGood
+	Fly()
+}
+
+type Sparrow struct{}
+
+func (Sparrow) Eat() {}
+func (Sparrow) Fly() {}
+
+type PenguinGood struct{}
+
+func (PenguinGood) Eat() {} 
+
+
+OCP.go
+// SOLID Principles
+// OCP - Support future requirements without modifying existing code
+
+package main
+
+type PaymentMethod interface {
+	Process(amount float64)
+}
+
+type CreditCardPaymentGood struct {}
+
+func (CreditCardPaymentGood) Process(amount float64) {
+	_ = amount
+}
+
+type PayPalPaymentGood struct {}
+
+func (PayPalPaymentGood) Process(amount float64) {
+	_ = amount
+}
+
+type CryptoPayment struct {}
+
+func (CryptoPayment) Process(amount float64) {
+	_ = amount
+}
+
+type PaymentProcessorGood struct{}
+ 
+func (PaymentProcessorGood) Process(method PaymentMethod, amount float64) {
+	method.Process(amount)
+}
+
+
+SeparationOfConcern.go
+// General Principles
+// Separation of Concerns - Enable independent testing and changes
+
+package main
+
+type Board interface {
+	HasWinner() bool
+	MakeMove(move string)
+	GetWinner() string
+}
+
+type Display interface {
+	Render(board Board)
+	ShowWinner(winner string)
+}
+
+type InputHandler interface {
+	NextMove() string
+}
+
+type TicTacToeGood struct {
+	board Board
+	display Display
+	inputHandler InputHandler
+}
+
+func NewTicTacToeGood(board Board, display Display, inputHandler InputHandler) *TicTacToeGood {
+	return &TicTacToeGood{
+		board: board,
+		display: display,
+		inputHandler: inputHandler,
+	}
+}
+
+func (g *TicTacToeGood) Play() {
+	for !g.board.HasWinner() {
+		g.display.Render(g.board)
+		move := g.inputHandler.NextMove()
+		g.board.MakeMove(move)
+	}
+	g.display.ShowWinner(g.board.GetWinner())
+}
+
+
+
+SRP.go
+// SOLID Principles
+// SRP - Keep Classes focussed on one responsibility
+
+package main
+
+type Report struct {}
+
+type PDFPrinter struct{}
+
+func (PDFPrinter) Printer(report Report) {
+	_ = report
+	// PDF formatting
+}
+
+type FileStorage struct{}
+
+func (FileStorage) Save(content string) {
+	_ = content
+	// file I/O
+}

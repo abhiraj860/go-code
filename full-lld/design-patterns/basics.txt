@@ -1,0 +1,673 @@
+Creational Patterns
+- Factory: Use when the callers shouldn't care which concrete class gets created.
+- Builder: Use when an object has lots of optional fields or messy construction details.
+- Singleton: Use when you truly need one global instance (rare in interview).
+
+Structural Patterns
+- Decorator: Use when you need to layer optional behaviors at runtime without subclass explosion.
+- Facade: Use when you want to hide internal complexity behind a simple entry point.
+
+Behavioral Patterns
+- Strategy: Use when you're replacing if/else logic with interchangeable behaviors.
+- Observer: Use when multiple components need to react to a single event.
+- State Machine: Use when an object's behavior depends on its current state and transitions get messy. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BuilderMethod.go
+// Creational Patterns
+// Builder: Use when an object has lots of optional fields or messy construction details.
+
+package main
+
+import "fmt"
+
+// NOTE: Go often prefers plain structs with zero values or functional options.
+// Builder can be useful when validation is required before construction.
+
+type HTTPRequest struct {
+	URL string
+	Method string
+	Headers map[string]string
+	Body string
+}
+
+type HTTPRequestBuilder struct {
+	request *HTTPRequest
+}
+
+func NewHTTPRequestBuilder() *HTTPRequestBuilder {
+	return &HTTPRequestBuilder{
+		request: &HTTPRequest{
+			Headers: make(map[string]string),
+		},
+	}	
+}
+
+func (b *HTTPRequestBuilder) URL(url string) *HTTPRequestBuilder {
+	b.request.URL = url
+	return b
+}
+
+func (b *HTTPRequestBuilder) Method(method string) *HTTPRequestBuilder {
+	b.request.Method = method
+	return b
+}
+
+func (b *HTTPRequestBuilder) Headers(key, value string) *HTTPRequestBuilder {
+	b.request.Headers[key] = value
+	return b
+}
+
+func (b *HTTPRequestBuilder) Body(body string) *HTTPRequestBuilder {
+	b.request.Body = body
+	return b
+}
+
+// Validation
+func (b *HTTPRequestBuilder) Build() (*HTTPRequest, error) {
+	if b.request.URL == "" {
+		return nil, fmt.Errorf("URL is required")
+	}
+	return b.request, nil
+} 
+
+// func main() {
+// 	request, _ := NewHTTPRequestBuilder().URL("https://api.example.com").Method("POST").Headers("Content-Type", "application/json").Body(`{"key" : "value}`).Build()
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DecoratorMethod.go
+// Structural Patterns
+// Decorator: Use when you need to layer optional behaviors at runtime without subclass explosion.
+
+// NOTE: This is the Decorator pattern (object composition),
+// not Go's function literals or middleware chains, though the idea is similar.
+
+package main
+
+import "fmt"
+
+type DataSource interface {
+	WriteData(data string)
+	ReadData() string
+}
+
+type FileDataSource struct {
+	filename string
+	storage string // simple in-memory storage for example
+}
+
+func NewFileDataSource(filename string) *FileDataSource {
+	return &FileDataSource{filename: filename}
+}
+
+func (f *FileDataSource) WriteData(data string) {
+	f.storage = data
+}
+
+func (f *FileDataSource) ReadData() string {
+	return f.storage
+}
+
+type EncryptionDecorator struct {
+	wrapped DataSource
+}
+
+func NewEncryptionDecorator(source DataSource) *EncryptionDecorator {
+	return &EncryptionDecorator{wrapped : source}
+}
+
+func (d *EncryptionDecorator) WriteData(data string) {
+	encrypted := "encrypted: " + data
+	d.wrapped.WriteData(encrypted)
+}
+
+func (d *EncryptionDecorator) ReadData() string {
+	data := d.wrapped.ReadData()
+	return trimPrefix(data, "encrypted:")
+}
+
+type CompressionDecorator struct {
+	wrapped DataSource
+}
+
+func NewCompressionDecorator(source DataSource) *CompressionDecorator {
+	return &CompressionDecorator{wrapped : source}
+}
+
+func (d *CompressionDecorator) WriteData(data string) {
+	compressed := "compressed: " + data
+	d.wrapped.WriteData(compressed) 
+} 
+
+func (d *CompressionDecorator) ReadData() string {
+	data := d.wrapped.ReadData()
+	return trimPrefix(data, "compressed:")
+}
+
+func trimPrefix(data, prefix string) string {
+	if len(data) >= len(prefix) && data[:len(prefix)] == prefix {
+		return data[len(prefix):]
+	}
+	return data
+}
+
+func main() {
+	// Usage:
+	var source DataSource = NewFileDataSource("data.txt")
+	source = NewEncryptionDecorator(source)
+	source = NewCompressionDecorator(source)
+	source.WriteData("sensitive info")
+	fmt.Println(source.ReadData())
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+FacadeMethod.go
+// Structural Patterns
+// Facade: Use when you want to hide internal complexity behind a simple entry point.
+// It's a coordinator that hides the complexity. Below the "Game" struct is a Facade Pattern.
+
+package main
+
+type GameState int
+
+const (
+	InProgress GameState = iota
+	Won
+	Draw
+)
+
+type Board struct{}
+
+func (b *Board) PlaceMark(row, col int, mark string) bool {
+	// Placeholder for actual placement logic
+	return true
+}
+
+func (b *Board) CheckWin(row, col int) bool {
+	// Placeholder for win detection
+	return false
+}
+
+func (b *Board) IsFull() bool {
+	// Placeholder for board fullness check
+	return false
+}
+
+type Player struct{
+	mark string
+}
+
+func NewPlayer(mark string) *Player {
+	return &Player{mark: mark}
+}
+
+func (p *Player) GetMark() string {
+	return p.mark
+}
+
+type Game struct {
+	board *Board
+	playerX *Player
+	playerO *Player
+	currentPlayer *Player
+	state GameState
+}
+
+func NewGame() *Game {
+	playerX := NewPlayer("X")
+	playerO := NewPlayer("O")
+	return &Game{
+		board: &Board{},
+		playerX : playerX,
+		playerO : playerO,
+		currentPlayer : playerX,
+		state : InProgress,
+	}
+}
+
+func (g *Game) MakeMove(row, col int) bool {
+	if g.state != InProgress {
+		return false
+	}
+	if !g.board.PlaceMark(row, col, g.currentPlayer.GetMark()) {
+		return false 
+	}
+	if g.board.CheckWin(row, col) {
+		g.state = Won
+	} else if g.board.IsFull() {
+		g.state = Draw
+	} else {
+		if g.currentPlayer == g.playerX {
+			g.currentPlayer = g.playerO
+		} else {
+			g.currentPlayer = g.playerX
+		}
+	}
+	return true
+}
+
+// Usage
+// func main() {
+// 	game := NewGame()
+// 	game.MakeMove(0, 1)
+// 	game.MakeMove(1, 1)
+// }
+
+
+
+
+
+
+
+
+
+
+
+FactoryMethod.go
+// Creational Patterns
+// Factory: Use when the callers shouldn't care which concrete class gets created.
+
+package main
+
+import "fmt"
+
+type Notification interface {
+	Send(message string)
+}
+
+type EmailNotification struct{}
+
+func (EmailNotification) Send(message string) {
+	// Email sending logic goes here
+}
+
+type SMSNotification struct{}
+
+func (SMSNotification) Send(message string) {
+	// SMS sending logic goes here
+}	
+
+func CreateNotification(notificationType string) (Notification, error) {
+	switch notificationType {
+	case "email":
+		return EmailNotification{}, nil
+	case "sms":
+		return SMSNotification{}, nil
+	default:
+		return nil, fmt.Errorf("unknown type %s", notificationType)
+	}
+}
+
+// func main() {
+// 	notif,_ := CreateNotification("email")
+// 	notif.Send("Hello")
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+ObserverMethod.go
+// Behavioral Patterns
+// Observer: Use when multiple components need to react to a single event.
+package main
+
+type Observer interface {
+	Update(symbol string, price float64)
+}
+
+type Subject interface {
+	Attach(observer Observer)
+	Detach(observer Observer)
+	NotifyObservers()
+}
+
+type Stock struct {
+	observers []Observer
+	symbol string
+	price float64
+}
+
+func NewStock(symbol string) *Stock {
+	return &Stock{
+		observers : []Observer{},
+		symbol : symbol,
+	}
+}
+
+func (s *Stock) Attach(observer Observer) {
+	s.observers = append(s.observers, observer)
+}
+
+
+func (s *Stock) Detach(observer Observer) {
+	for i, o := range s.observers {
+		if o == observer {
+			s.observers = append(s.observers[:i], s.observers[i+ 1:]...)
+			break
+		}
+	}
+}
+
+func (s *Stock) SetPrice(price float64) {
+	s.price = price
+	s.NotifyObservers()
+}
+
+func (s *Stock) NotifyObservers() {
+	for _,observer := range s.observers {
+		observer.Update(s.symbol, s.price)
+	}
+}
+
+
+type PriceDisplay struct{}
+
+func (PriceDisplay) Update(symbol string, price float64) {
+	// fmt.Printf("Display updated: %s = $%.2f\n", symbol, price)
+	_ = price
+	_ = symbol	
+}
+
+type PriceAlert struct{
+	threshold float64
+}
+
+func NewPriceAlert(threshold float64) *PriceAlert {
+	return &PriceAlert{threshold: threshold}
+}
+
+func (p *PriceAlert) Update(symbol string, price float64) {
+	if price > p.threshold {
+		// "fmt.Printf("Alert! %s exceeded $%.2f\n", symbol, p.threshold)
+	}
+	_ = symbol
+}
+
+
+// usage
+// stock := NewStock("AAPL")
+// display := PriceDisplay{}
+// alert := NewPriceAlert(150.00)
+// stock.Attach(display)
+// stock.Attach(alert)
+// stock.SetPrice(145.00)
+// stock.SetPrice(155.00)
+
+
+
+
+
+
+
+
+SingletonMethod.go
+// Creational Patterns
+// Singleton: Use when you truly need one global instance (rare in interview).
+
+package main
+
+import "sync"
+
+// NOTE: Singletons are rarely necessary in Go. Prefer passing dependencies
+// explicitly. When needed, sync.Once provides safe lazy initialization.
+
+type DatabaseConnection struct{}
+
+func (d *DatabaseConnection) Query(sql string) {
+	// Database operation
+	_ = sql
+}
+
+var (
+	dbInstance *DatabaseConnection
+	once sync.Once
+)
+
+func GetDatabaseConnection() *DatabaseConnection {
+	once.Do(func() {
+		dbInstance = &DatabaseConnection{}
+	})
+	return dbInstance	
+}
+
+// Usage
+// db := GetDatabaseConnection()
+// db.Query("SELECT * FROM users")
+
+
+
+
+
+
+
+
+
+
+StateMachineMethod.go
+// Behavioral Patterns
+// State Machine: Use when an object's behavior depends on its current state and transitions get messy. 
+
+package main
+
+import "fmt"
+
+type VendingMachineState interface {
+	InsertCoin(machine *VendingMachine)
+	SelectProduct(machine * VendingMachine)
+	Dispense(machine * VendingMachine)
+}
+
+type NoCoinState struct{}
+
+func (NoCoinState) InsertCoin(machine *VendingMachine) {
+	fmt.Println("Coin inserted")
+	machine.setState(HasCoinState{})
+}
+
+func (NoCoinState) SelectProduct(machine *VendingMachine) {
+	fmt.Println("Insert coin first")
+}
+
+func (NoCoinState) Dispense(machine *VendingMachine) {
+	fmt.Println("Insert coin first")
+}
+
+type HasCoinState struct{}
+
+func (HasCoinState) InsertCoin(machine *VendingMachine) {
+	fmt.Println("Coin already inserted")
+}
+
+func (HasCoinState) SelectProduct(machine * VendingMachine) {
+	fmt.Println("Product Selected")
+	machine.setState(DispenseState{})
+}
+
+func (HasCoinState) Dispense(machine *VendingMachine) {
+	fmt.Println("Select product state")
+}
+
+type DispenseState struct{}
+
+func (DispenseState) InsertCoin(machine *VendingMachine) {
+	fmt.Println("Please, wait, dispensing")
+}
+
+func (DispenseState) SelectProduct(machine *VendingMachine) {
+	fmt.Println("Please wait, dispensing")
+}
+
+func (DispenseState) Dispense(machine *VendingMachine) {
+	fmt.Println("Dispensing product")
+	machine.setState(NoCoinState{})
+}
+
+type VendingMachine struct {
+	currentState VendingMachineState
+}
+
+func NewVendingMachine() *VendingMachine {
+	return &VendingMachine{currentState : NoCoinState{}}
+}
+
+func (v *VendingMachine) InsertCoin() {
+	v.currentState.InsertCoin(v)
+}
+
+func (v *VendingMachine) SelectProduct() {
+	v.currentState.SelectProduct(v)
+}
+
+func (v *VendingMachine) Dispense() {
+	v.currentState.Dispense(v)
+}
+
+func (v *VendingMachine) setState(state VendingMachineState) {
+	v.currentState = state
+}
+
+// Usage
+// machine := NewVendingMachine()
+// machine.SelectProduct() //"Insert a coin"
+// machine.InsertCoin() // "Coin Inserted"
+// machine.SelectProduct() // "Product Selected"
+// machine.Dispense() // "Dispensing Product"
+
+
+
+
+
+
+
+
+StrategyMethod.go   
+// Behavioral Patterns
+// Strategy: Use when you're replacing if/else logic with interchangeable behaviors.
+
+package main
+
+import "fmt"
+
+type PaymentStrategy interface {
+	Pay(amount float64) bool
+}
+
+type CreditCardPayment struct {
+	cardNumber string
+}
+
+func NewCreditCardPayment(cardNumber string) *CreditCardPayment {
+	return &CreditCardPayment{cardNumber: cardNumber}
+}
+
+func (c *CreditCardPayment) Pay(amount float64) bool {
+	fmt.Printf("Paid %.2f with credit card ending %s \n", amount, c.cardNumber)
+	return true
+}
+
+type PayPalPayment struct {
+	email string
+}
+
+func NewPayPalPayment(email string) *PayPalPayment {
+	return &PayPalPayment{email : email}
+}
+
+func (p *PayPalPayment) Pay(amount float64) bool {
+	fmt.Printf("Paid %.2f with PayPal account %s", amount, p.email)
+	return true
+}
+
+type ShoppingCart struct {
+	paymentStrategy PaymentStrategy
+}
+
+func NewShoppingCart() *ShoppingCart {
+	return &ShoppingCart{}
+}
+
+func (c *ShoppingCart) SetPaymentStrategy(strategy PaymentStrategy) {
+	c.paymentStrategy = strategy
+}
+
+func (c *ShoppingCart) Checkout(amount float64) {
+	if c.paymentStrategy != nil {
+		c.paymentStrategy.Pay(amount)
+	}
+}
+
+
+// func main() {
+// 	cart := NewShoppingCart()
+// 	cart.SetPaymentStrategy(NewCreditCardPayment("1234-5678"))
+// 	cart.Checkout(100.00)
+
+// 	cart.SetPaymentStrategy(NewPayPalPayment("user@example.com"))
+// 	cart.Checkout(50.00)
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

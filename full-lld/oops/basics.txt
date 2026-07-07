@@ -1,0 +1,224 @@
+Encapsulation: Hide state, expose behaviour. Make fields private, provide methods for access.
+Abstraction: Define interface for variations. Multiple payments methods? Different vehicle types? Create an interface
+Polymorphism: Let objects handle themselves. No type checking, no switch statements on types
+Inheritance: Compose behaviour, don't inherit it. Reach for interface first, use inheritance only when sharing stable implementation
+
+
+Abstraction.go
+// Abstraction: Define interface for variations. Multiple payments methods? Different vehicle types? Create an interface
+
+package main
+
+type PaymentMethod interface {
+	Process(amount float64) bool
+}
+
+type CreditCardPayment struct{}
+
+func (CreditCardPayment) Process(amount float64) bool {
+	_ = amount
+	return true
+}
+
+type PayPalPayment struct{}
+
+func (PayPalPayment) Process(amount float64) bool {
+	_ = amount
+	return true
+}
+
+type GoodOrder struct {
+	Total float64
+}
+
+type OrderServiceGood struct {
+	paymentMethod PaymentMethod
+}
+
+func NewOrderServiceGood(method PaymentMethod) *OrderServiceGood {
+	return &OrderServiceGood{paymentMethod : method}
+}
+
+func (s *OrderServiceGood) Checkout(order GoodOrder) {
+	s.paymentMethod.Process(order.Total)
+}
+
+
+
+
+
+Composition.go
+// When behavior varies, the better approach is to isolate that behavior into its own abstraction and compose it.
+
+package main
+
+type DriveTrain interface {
+	Start()
+}
+
+type GasEngine struct{}
+
+func (GasEngine) Start() {
+	// gas engine startup logic
+}
+
+type ElectricMotor struct{}
+
+func (ElectricMotor) Start() {
+	// electric motor startup logic
+}
+
+type CompositionCar struct {
+	drivetrain DriveTrain
+} 
+
+func NewCompositionCar(drivetrain DriveTrain) *CompositionCar {
+	return &CompositionCar{drivetrain: drivetrain}
+}
+
+func (c *CompositionCar) Start() {
+	c.drivetrain.Start()
+}
+
+
+
+Encapsulation.go
+// Encapsulation: Hide state, expose behaviour. Make fields private, provide methods for access.
+
+package main
+
+
+type EncapParkingSpot struct{}
+
+func (p *EncapParkingSpot) Occupy(vehicle *EncapVehicle) {
+	_ = vehicle
+}
+
+type EncapVehicle struct {
+	Type string
+}
+
+type ParkingLotGood struct {
+	spots []*EncapParkingSpot
+}
+
+func NewParkingLotGood() *ParkingLotGood {
+	return &ParkingLotGood{spots : []*EncapParkingSpot{}}
+}
+
+func (p *ParkingLotGood) ParkingVehicle(vehicle *EncapVehicle) bool {
+	spot := p.findAvailableSpot(vehicle)
+	if spot == nil {
+		return false
+	}
+	spot.Occupy(vehicle)
+	return true
+}
+
+func (p *ParkingLotGood) findAvailableSpot(vehicle *EncapVehicle) *EncapParkingSpot {
+	_ = vehicle
+	if len(p.spots) == 0 {
+		return nil
+	}
+	return p.spots[0]
+}
+
+func (p *ParkingLotGood) GetSpots() []*EncapParkingSpot {
+	copySpots := make([]*EncapParkingSpot, len(p.spots))
+	copy(copySpots, p.spots)
+	return copySpots
+}
+
+
+
+
+Inheritance.go
+// Inheritance: Compose behaviour, don't inherit it. Reach for interface first, use inheritance only when sharing stable implementation
+
+package main
+
+type BankAccount struct {
+	Balance float64
+}
+
+func (a *BankAccount) Deposit(amount float64) {
+	a.Balance += amount
+}
+
+func (a *BankAccount) Withdraw(amount float64) bool {
+	if a.Balance < amount {
+		return false
+	}
+	a.Balance -= amount
+	return true
+}
+
+func (a *BankAccount) GetBalance() float64 {
+	return a.Balance
+}
+
+type SavingsAccount struct {
+	BankAccount
+	InterestRate float64
+}
+
+type CheckingAccount struct {
+	BankAccount
+	OverdraftLimit float64
+}
+
+
+
+
+
+Polymorphism.go
+//Polymorphism: Let objects handle themselves. No type checking, no switch statements on types
+
+package main
+
+type SpotSize string
+
+const (
+	RegularSpot SpotSize = "regular"
+	MotorcycleSpot SpotSize = "motorcycle"
+	LargeSpot SpotSize = "large"
+)
+
+type PolyParkingSpot struct{}
+
+
+type PolyVehicle interface {
+	RequiredSpotSize() SpotSize
+}
+
+type CarGood struct{}
+
+func (CarGood) RequiredSpotSize() SpotSize {
+	return RegularSpot
+}
+
+type MotorcycleGood struct{}
+
+func (MotorcycleGood) RequiredSpotSize() SpotSize {
+	return MotorcycleSpot
+}
+
+type TruckGood struct{}
+
+func (TruckGood) RequiredSpotSize() SpotSize {
+	return LargeSpot
+}
+
+type ParkingLotPolyGood struct{}
+
+func (p *ParkingLotPolyGood) ParkVehicle(vehicle PolyVehicle) bool {
+	required := vehicle.RequiredSpotSize()
+	spot := p.findSpotBySize(required)
+	return spot != nil
+}
+
+func (p *ParkingLotPolyGood) findSpotBySize(size SpotSize) *PolyParkingSpot {
+	_ = size
+	return nil
+}
+

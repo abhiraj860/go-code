@@ -134,3 +134,4 @@ func isValidSeatID(seatID string) bool {
 	}
 	return row >= 'A' && row <= 'Z' && num >= 0 && num <= 20
 }
+

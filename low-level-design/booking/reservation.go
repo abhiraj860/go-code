@@ -30,3 +30,4 @@ func (r *Reservation) GetSeatIDs() []string {
 	copy(copied, r.seatIDs)
 	return copied
 }
+

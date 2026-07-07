@@ -81,3 +81,4 @@ func (l *Locker) clearDeposit(accessToken *AccessToken) {
 	compartment.MarkFree()
 	delete(l.accessTokenMapping, accessToken.GetCode())
 }
+

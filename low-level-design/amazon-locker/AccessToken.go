@@ -27,3 +27,4 @@ func (a *AccessToken) GetCompartment() *Compartment {
 func (a *AccessToken) GetCode() string {
 	return a.code
 }
+

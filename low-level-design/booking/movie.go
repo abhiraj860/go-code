@@ -16,3 +16,4 @@ func (m *Movie) GetID() string {
 func (m *Movie) GetTitle() string {
 	return m.title
 }
+
