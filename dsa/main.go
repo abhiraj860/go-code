@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 )
 
 func possible(mid int, arr []int, k int) bool {
@@ -16,10 +15,10 @@ func possible(mid int, arr []int, k int) bool {
 			curr = v
 		}
 	}
-	if cnt == k {
-		return true
+	if cnt > k {
+		return false
 	}
-	return false
+	return true
 }
 
 func allocate(arr []int, k int) int {
@@ -27,13 +26,13 @@ func allocate(arr []int, k int) int {
 		return -1
 	}
 
-	low := math.MinInt
+	low := arr[0]
 	high := 0
 	for _, v := range arr {
 		low = max(low, v)
 		high += v
 	}
-	ans := 0
+	ans := -1
 	for low <= high {
 		mid := low + (high - low) / 2
 		if possible(mid, arr, k) {
@@ -47,8 +46,8 @@ func allocate(arr []int, k int) int {
 }
 
 func main() {
-	arr := []int{12, 34, 67, 90}
-	k := 2
+	arr := []int{25, 46, 28, 49, 24}
+	k := 4
 	fmt.Println(allocate(arr, k))	
 }
 
