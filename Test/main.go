@@ -1,29 +1,81 @@
 package main
 
-type DriveTrain interface {
-	Start()
+import (
+	"fmt"
+)
+
+type PaymentMethod interface {
+	Process(amount float64) bool
 }
 
-type GasEngine struct {}
+type CreditCardPayment struct{}
+func (CreditCardPayment) Process(amount float64) bool { return true } 
 
-func (GasEngine) Start() {
+type PayPalPayment struct{}
+func (PayPalPayment) Process(amount float64) bool {return true}
 
+func Checkout(method PaymentMethod, amount float64) {
+	method.Process(amount)
 }
 
-type ElectricMotor struct {}
+type Room struct {}
 
-func (ElectricMotor) Start() {
-
+func (r *Room) Error() string {
+	return "Erer"
 }
 
-type CompositionCar struct {
-	driveTrain DriveTrain
+
+func (r *Room) Book() error {
+	return r 
+}
+type LogLevel struct {}
+
+func (l LogLevel) String() string {
+	return ""
 }
 
-func NewCompositionCar(driveTrain DriveTrain) *CompositionCar {
-	return &CompositionCar{driveTrain: driveTrain}
+type SpotType int
+
+const (
+	SPOT_MOTORCYCLE SpotType = iota
+	SPOT_CAR 
+	SPOT_Large
+)
+
+type TaskStatus string
+
+const (
+	Pending TaskStatus = "PENDING"
+	InProgress TaskStatus = "IN_PROGRESS"
+)
+
+type ParkingSpot struct {
+	ID string
+	SpotType SpotType
+	occupied bool // lowercase = encapsulation
 }
 
-func (c *CompositionCar) Start() {
-	c.driveTrain.Start()
+type BankAccount struct {
+	Balance float64
 }
+
+func (a *BankAccount) Deposit(amount float64) { a.Balance += amount }
+
+type SavingsAccount struct {
+	BankAccount
+	InterestRate float64
+}
+
+
+
+
+
+func NewParkingSpot(id string, spotType SpotType) *ParkingSpot {
+	return &ParkingSpot{ID : id, SpotType: spotType}
+}
+
+func main() {
+
+	fmt.Println(SPOT_CAR)
+}
+
