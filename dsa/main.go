@@ -9,21 +9,23 @@ func possible(nums []int, k int, mid float64) bool {
 	cnt := 0
 	for i := 1; i < len(nums); i++ {
 		dist := float64(nums[i]) - float64(nums[i - 1])
-		numOfStation := int(dist / mid)
-		if math.Abs(dist - float64(numOfStation) * mid) < 1e-9 {
-			numOfStation--
+		numOfStations := int(dist / mid)
+		if math.Abs(dist - float64(numOfStations) * mid) < 1e-9 {
+			numOfStations--
 		}
-		cnt += int(numOfStation)
+		cnt += int(numOfStations)
 	}
+
 	if cnt > k {
 		return false
 	}
+
 	return true
 }
 
 func dist(nums []int, k int) float64 {
 	low := 0.0
-	high := 0.0
+	high := float64(math.MinInt)
 	for i := 1; i < len(nums); i++ {
 		high = max(high, float64(nums[i]) - float64(nums[i - 1]))
 	}
