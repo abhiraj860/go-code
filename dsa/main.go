@@ -2,50 +2,52 @@ package main
 
 import (
 	"fmt"
-	"math"
 )
 
-func possible(nums []int, k int, mid float64) bool {
-	cnt := 0
-	for i := 1; i < len(nums); i++ {
-		dist := float64(nums[i]) - float64(nums[i - 1])
-		numOfStations := int(dist / mid)
-		if math.Abs(dist - float64(numOfStations) * mid) < 1e-9 {
-			numOfStations--
-		}
-		cnt += int(numOfStations)
-	}
-
-	if cnt > k {
-		return false
-	}
-
-	return true
-}
-
-func dist(nums []int, k int) float64 {
-	low := 0.0
-	high := float64(math.MinInt)
-	for i := 1; i < len(nums); i++ {
-		high = max(high, float64(nums[i]) - float64(nums[i - 1]))
-	}
-	for high - low >= 1e-6 {
-		mid := low + (high - low) / 2.0
-		if possible(nums, k, mid) {
-			high = mid
+func merge(nums []int, s int, mid int, e int, cnt *int) {
+	i := s
+	j := mid + 1
+	temp := []int{}
+	for i <= mid && j <= e {
+		if nums[i] <= nums[j] {
+			temp = append(temp, nums[i])
+			i++
 		} else {
-			low = mid
+			*cnt += (mid - i + 1)
+			temp = append(temp, nums[j])
+			j++
 		}
-	} 
-	return high
+	}
+	for i <= mid {
+		temp = append(temp, nums[i])
+		i++
+	}
+	for j <= e {
+		temp = append(temp, nums[j])
+		j++
+	}
+	indx := 0
+	for i := s; i <= e; i++ {
+		nums[i] = temp[indx]
+		indx++
+	}
 }
 
+func countNums(nums []int, s int, e int, cnt *int) {
+	if s >= e {
+		return 
+	}
+	mid := (s + e) / 2
+	countNums(nums, s, mid, cnt)
+	countNums(nums, mid + 1, e, cnt)
+	merge(nums, s, mid, e, cnt)
+}
 
 func main() {
-	nums := []int{3, 6, 12, 19, 33}
-	k := 3
-	nums1 := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	k1 := 1
-	fmt.Println(dist(nums, k))
-	fmt.Println(dist(nums1, k1))
+	nums := []int{4, 3, 2, 1}
+	s := 0
+	e := len(nums) - 1
+	cnt := 0	
+	countNums(nums, s, e, &cnt)
+	fmt.Println(cnt)
 }
