@@ -3,40 +3,36 @@ package main
 import (
 	"fmt"
 )
+type pair struct{
+	first string
+	second int
+}
 
-func sparseSearch(words []string, s int, e int, key string) int {
-	for s <= e {
-		mid := s + (e - s) / 2
-		midLeft := mid - 1
-		midRight := mid + 1
-		if words[mid] == "" {
-			for true {
-				if midLeft < s && midRight > e {
-					return -1
-				} else if midLeft >= s && words[midLeft] != "" {
-					mid = midLeft
-					break
-				} else if midRight <= e && words[midRight] != "" {
-					mid = midRight
-					break
-				}
-				midLeft--
-				midRight++
-			}
-		}
-		if words[mid] == key {
-			return mid
-		} else if key > words[mid] {
-			s = mid + 1
-		} else {
-			e = mid - 1
-		}
+func abs(x int) int {
+	if x < 0 {
+		return -x
 	}
-	return -1
+	return x
+}
+
+func badness(ranks []pair) int {
+	 bad := 0
+	 desRank := make([]int, len(ranks) + 1)
+	 for _, v := range ranks {
+		desRank[v.second]++
+	 }
+	 pos := 0
+	 for i := 1; i <= len(ranks); i++ {
+		for desRank[i] > 0 {
+			pos++
+			bad += abs(pos - i)
+			desRank[i]--
+		}
+	 }
+	 return bad
 }
 
 func main() {
-	words := []string{"ai", "", "", "bat", "", "", "car", "cat", "", "", "dog", "", "e"}
-	k := "car"
-	fmt.Println(sparseSearch(words, 0, len(words) - 1, k))
+	ranks := []pair{{"A", 1}, {"B", 2}, {"W", 2}, {"B", 1}, {"D", 5}, {"S", 7}, {"W", 7}}
+	fmt.Println(badness(ranks))
 }
