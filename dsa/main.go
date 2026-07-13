@@ -4,50 +4,32 @@ import (
 	"fmt"
 )
 
-func merge(nums []int, s int, mid int, e int, cnt *int) {
-	i := s
-	j := mid + 1
-	temp := []int{}
-	for i <= mid && j <= e {
-		if nums[i] <= nums[j] {
-			temp = append(temp, nums[i])
+func partition(nums []int, k int, s int, e int) int {
+	i := s - 1
+	pivot := nums[e]
+	for j := s; j < e; j++{
+		if nums[j] < pivot {
 			i++
-		} else {
-			*cnt += (mid - i + 1)
-			temp = append(temp, nums[j])
-			j++
+			nums[j], nums[i] = nums[i], nums[j]
 		}
 	}
-	for i <= mid {
-		temp = append(temp, nums[i])
-		i++
-	}
-	for j <= e {
-		temp = append(temp, nums[j])
-		j++
-	}
-	indx := 0
-	for i := s; i <= e; i++ {
-		nums[i] = temp[indx]
-		indx++
-	}
+	nums[i + 1], nums[e] = nums[e], nums[i + 1]
+	return i + 1
 }
 
-func countNums(nums []int, s int, e int, cnt *int) {
-	if s >= e {
-		return 
+func quickSelect(nums []int, k int, s int, e int) int {
+	p := partition(nums, k, s, e)
+	if p == k {
+		return nums[p]
+	} else if k < p {
+		return quickSelect(nums, k, s, p - 1)
+	} else {
+		return quickSelect(nums, k, p + 1, e)
 	}
-	mid := (s + e) / 2
-	countNums(nums, s, mid, cnt)
-	countNums(nums, mid + 1, e, cnt)
-	merge(nums, s, mid, e, cnt)
 }
 
 func main() {
-	nums := []int{4, 3, 2, 1}
-	s := 0
-	e := len(nums) - 1
-	cnt := 0	
-	countNums(nums, s, e, &cnt)
-	fmt.Println(cnt)
+	nums := []int{7, 10, 4, 3, 20, 15}
+	k := 4
+	fmt.Println(quickSelect(nums, k - 1, 0, len(nums) - 1))
 }
