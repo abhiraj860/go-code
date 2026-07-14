@@ -4,30 +4,32 @@ import (
 	"fmt"
 )
 
-func output(nums []int, k int)[][]int {
-	result := [][]int{}
+func finalResult(str string) (int, int) {
 	i := 0
 	j := 0
-	curr := 0
-	for j < len(nums) {
-		curr += nums[j]
-		for curr > k && i < j {
-			curr -= nums[i]
-			i++
+	mp := make(map[rune]int)
+	n := len(str)
+	maxWindow := -1
+	startIndx := 0
+	for j < n {
+		ch := rune(str[j])
+		if _, ok := mp[ch]; ok && mp[ch] >= i {
+			i = mp[ch] + 1
 		}
-		if curr == k {
-			result = append(result, []int{i, j})
-		}
+		currWindow := j - i + 1
+		mp[ch] = j
 		j++
+		if currWindow > maxWindow {
+			startIndx = i
+			maxWindow = currWindow
+		}
 	}
-	return result
+	return startIndx, maxWindow
 }
 
 func main() {
-	plots := []int{1, 3, 2, 1, 4, 1, 3, 2, 1, 1, 2}
-	k := 8
-	out := output(plots, k)
-	for _, v := range out {
-		fmt.Println(v)
-	}
+	var str string
+	fmt.Scan(&str)
+	a, b := finalResult(str)
+	fmt.Println(str[a:a + b])
 }
