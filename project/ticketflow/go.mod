@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/abhiraj860/ticketflow/pkg v0.0.0
 	github.com/abhiraj860/ticketflow/proto v0.0.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
