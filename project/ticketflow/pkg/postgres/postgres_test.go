@@ -3,7 +3,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,6 +70,28 @@ func newScratchDB(t *testing.T) string {
 		"postgres://ticketflow:ticketflow@localhost:5432/%s?sslmode=disable", name)
 }
 
+// countUpMigrations returns how many forward migrations exist on disk, which is
+// the schema version a fully-migrated database should report.
+func countUpMigrations(t *testing.T, fsys fs.FS, dir string) uint {
+	t.Helper()
+
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		t.Fatalf("reading %s: %v", dir, err)
+	}
+
+	var n uint
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".up.sql") {
+			n++
+		}
+	}
+	if n == 0 {
+		t.Fatalf("no .up.sql files found in %s", dir)
+	}
+	return n
+}
+
 func TestConnectRequiresDSN(t *testing.T) {
 	if _, err := Connect(context.Background(), Options{}); err == nil {
 		t.Error("Connect accepted an empty DSN")
@@ -120,8 +144,12 @@ func TestMigrateAppliesCatalogSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Version: %v", err)
 	}
-	if version != 1 {
-		t.Errorf("version = %d, want 1", version)
+	// Derived from the migration files rather than hardcoded, so adding a
+	// migration does not require editing this assertion. What matters is that
+	// every migration on disk was applied.
+	want := countUpMigrations(t, fsys, "migrations")
+	if version != want {
+		t.Errorf("version = %d, want %d (one per .up.sql on disk)", version, want)
 	}
 	if dirty {
 		t.Error("schema reported dirty after a clean migration")
@@ -167,8 +195,8 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Version: %v", err)
 	}
-	if version != 1 || dirty {
-		t.Errorf("version/dirty = %d/%v, want 1/false", version, dirty)
+	if want := countUpMigrations(t, fsys, "migrations"); version != want || dirty {
+		t.Errorf("version/dirty = %d/%v, want %d/false", version, dirty, want)
 	}
 }
 

@@ -82,10 +82,14 @@ CREATE TABLE event (
 );
 
 -- The storefront's primary browse query is
---   WHERE status = ON_SALE AND starts_at > now() ORDER BY starts_at
--- optionally narrowed by city. This composite is ordered (status, starts_at)
--- so the index supplies the sort as well as the filter -- no sort node in the
--- plan. Phase 7 confirms that with EXPLAIN ANALYZE.
+--   WHERE status IN (ANNOUNCED, ON_SALE) ORDER BY starts_at, id
+-- optionally narrowed by city.
+--
+-- NOTE: this definition does not work as intended -- see 0002, which replaces
+-- it. A leading status column cannot supply a global ordering when the query
+-- matches more than one status, so Postgres sorted anyway and skipped the
+-- index entirely. Left as-written here because a shipped migration is history;
+-- the fix is additive.
 CREATE INDEX event_browse_idx
     ON event (status, starts_at)
     WHERE status IN (1, 2);   -- ANNOUNCED, ON_SALE: cancelled/sold-out are never browsed
