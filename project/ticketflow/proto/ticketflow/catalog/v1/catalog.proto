@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ticketflow.catalog.v1;
 
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 // Catalog owns the *descriptive* half of an event: what it is, where it is, and
@@ -134,8 +135,33 @@ message GetSeatMapResponse {
   SeatMap seat_map = 1;
 }
 
+message GetEventContentRequest {
+  string event_id = 1;
+}
+
+// Editorial content for an event, stored in MongoDB rather than Postgres.
+//
+// The shape genuinely differs per event kind -- a concert carries a setlist and
+// support acts, a football fixture carries squads and a competition table, a
+// theatre run carries a cast list and an interval duration. Modelling that in
+// Postgres means either a wide sparse table or an EAV schema, and modelling it
+// in protobuf means a message that is mostly unset fields.
+//
+// google.protobuf.Struct is the honest representation: this really is
+// schemaless JSON, and pretending otherwise would push the variability into
+// application code as a pile of optional fields.
+message GetEventContentResponse {
+  google.protobuf.Struct content = 1;
+  // Mirrors EventKind, so a client can pick the right renderer without
+  // inspecting the document's keys.
+  EventKind kind = 2;
+}
+
 service CatalogService {
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
   rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
   rpc GetSeatMap(GetSeatMapRequest) returns (GetSeatMapResponse);
+  // Added after v1 shipped. Additive -- a new RPC does not break existing
+  // clients, so `buf breaking` accepts it without a v2 package.
+  rpc GetEventContent(GetEventContentRequest) returns (GetEventContentResponse);
 }

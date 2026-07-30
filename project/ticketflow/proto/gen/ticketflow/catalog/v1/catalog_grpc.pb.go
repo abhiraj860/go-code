@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CatalogService_GetEvent_FullMethodName   = "/ticketflow.catalog.v1.CatalogService/GetEvent"
-	CatalogService_ListEvents_FullMethodName = "/ticketflow.catalog.v1.CatalogService/ListEvents"
-	CatalogService_GetSeatMap_FullMethodName = "/ticketflow.catalog.v1.CatalogService/GetSeatMap"
+	CatalogService_GetEvent_FullMethodName        = "/ticketflow.catalog.v1.CatalogService/GetEvent"
+	CatalogService_ListEvents_FullMethodName      = "/ticketflow.catalog.v1.CatalogService/ListEvents"
+	CatalogService_GetSeatMap_FullMethodName      = "/ticketflow.catalog.v1.CatalogService/GetSeatMap"
+	CatalogService_GetEventContent_FullMethodName = "/ticketflow.catalog.v1.CatalogService/GetEventContent"
 )
 
 // CatalogServiceClient is the client API for CatalogService service.
@@ -31,6 +32,9 @@ type CatalogServiceClient interface {
 	GetEvent(ctx context.Context, in *GetEventRequest, opts ...grpc.CallOption) (*GetEventResponse, error)
 	ListEvents(ctx context.Context, in *ListEventsRequest, opts ...grpc.CallOption) (*ListEventsResponse, error)
 	GetSeatMap(ctx context.Context, in *GetSeatMapRequest, opts ...grpc.CallOption) (*GetSeatMapResponse, error)
+	// Added after v1 shipped. Additive -- a new RPC does not break existing
+	// clients, so `buf breaking` accepts it without a v2 package.
+	GetEventContent(ctx context.Context, in *GetEventContentRequest, opts ...grpc.CallOption) (*GetEventContentResponse, error)
 }
 
 type catalogServiceClient struct {
@@ -71,6 +75,16 @@ func (c *catalogServiceClient) GetSeatMap(ctx context.Context, in *GetSeatMapReq
 	return out, nil
 }
 
+func (c *catalogServiceClient) GetEventContent(ctx context.Context, in *GetEventContentRequest, opts ...grpc.CallOption) (*GetEventContentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetEventContentResponse)
+	err := c.cc.Invoke(ctx, CatalogService_GetEventContent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CatalogServiceServer is the server API for CatalogService service.
 // All implementations must embed UnimplementedCatalogServiceServer
 // for forward compatibility.
@@ -78,6 +92,9 @@ type CatalogServiceServer interface {
 	GetEvent(context.Context, *GetEventRequest) (*GetEventResponse, error)
 	ListEvents(context.Context, *ListEventsRequest) (*ListEventsResponse, error)
 	GetSeatMap(context.Context, *GetSeatMapRequest) (*GetSeatMapResponse, error)
+	// Added after v1 shipped. Additive -- a new RPC does not break existing
+	// clients, so `buf breaking` accepts it without a v2 package.
+	GetEventContent(context.Context, *GetEventContentRequest) (*GetEventContentResponse, error)
 	mustEmbedUnimplementedCatalogServiceServer()
 }
 
@@ -96,6 +113,9 @@ func (UnimplementedCatalogServiceServer) ListEvents(context.Context, *ListEvents
 }
 func (UnimplementedCatalogServiceServer) GetSeatMap(context.Context, *GetSeatMapRequest) (*GetSeatMapResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSeatMap not implemented")
+}
+func (UnimplementedCatalogServiceServer) GetEventContent(context.Context, *GetEventContentRequest) (*GetEventContentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventContent not implemented")
 }
 func (UnimplementedCatalogServiceServer) mustEmbedUnimplementedCatalogServiceServer() {}
 func (UnimplementedCatalogServiceServer) testEmbeddedByValue()                        {}
@@ -172,6 +192,24 @@ func _CatalogService_GetSeatMap_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CatalogService_GetEventContent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventContentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CatalogServiceServer).GetEventContent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CatalogService_GetEventContent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CatalogServiceServer).GetEventContent(ctx, req.(*GetEventContentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CatalogService_ServiceDesc is the grpc.ServiceDesc for CatalogService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +228,10 @@ var CatalogService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSeatMap",
 			Handler:    _CatalogService_GetSeatMap_Handler,
+		},
+		{
+			MethodName: "GetEventContent",
+			Handler:    _CatalogService_GetEventContent_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

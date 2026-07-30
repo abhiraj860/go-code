@@ -168,12 +168,15 @@ func (a *API) getEvent(c *gin.Context) {
 	eventID := c.Param("id")
 
 	var (
-		eventResp *catalogv1.GetEventResponse
-		availResp *inventoryv1.GetAvailabilityResponse
+		eventResp   *catalogv1.GetEventResponse
+		availResp   *inventoryv1.GetAvailabilityResponse
+		contentResp *catalogv1.GetEventContentResponse
 	)
 
 	g, gctx := errgroup.WithContext(ctx)
 
+	// Only this branch returns its error. The event is the page; without it
+	// there is nothing to render, so its failure must abort the whole fan-out.
 	g.Go(func() error {
 		var err error
 		eventResp, err = a.catalog.GetEvent(gctx, &catalogv1.GetEventRequest{EventId: eventID})
@@ -193,6 +196,24 @@ func (a *API) getEvent(c *gin.Context) {
 			return nil
 		}
 		availResp = resp
+		return nil
+	})
+
+	g.Go(func() error {
+		resp, err := a.catalog.GetEventContent(gctx, &catalogv1.GetEventContentRequest{
+			EventId: eventID,
+		})
+		if err != nil {
+			// Also swallowed, and for a stronger reason: most events have no
+			// content document at all, so NotFound here is the normal case
+			// rather than a failure.
+			if status.Code(err) != codes.NotFound {
+				a.logger.WarnContext(gctx, "content unavailable, rendering without it",
+					slog.String("event_id", eventID), slog.Any("error", err))
+			}
+			return nil
+		}
+		contentResp = resp
 		return nil
 	})
 
@@ -218,6 +239,8 @@ func (a *API) getEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"event":        event,
 		"availability": summarise(availResp),
+		// Null when the event has no content document, which is normal.
+		"content": contentResp.GetContent(),
 	})
 }
 

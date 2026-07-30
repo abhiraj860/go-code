@@ -11,6 +11,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	catalogv1 "github.com/abhiraj860/ticketflow/proto/gen/ticketflow/catalog/v1"
@@ -63,6 +64,26 @@ func (s *Server) GetSeatMap(ctx context.Context, req *catalogv1.GetSeatMapReques
 		return nil, toStatus(err)
 	}
 	return &catalogv1.GetSeatMapResponse{SeatMap: seatMapToProto(seatMap)}, nil
+}
+
+func (s *Server) GetEventContent(ctx context.Context, req *catalogv1.GetEventContentRequest) (*catalogv1.GetEventContentResponse, error) {
+	content, err := s.svc.GetEventContent(ctx, req.GetEventId())
+	if err != nil {
+		return nil, toStatus(err)
+	}
+
+	body, err := structpb.NewStruct(content.Body)
+	if err != nil {
+		// The document held something structpb cannot represent (a raw BSON
+		// type that escaped conversion, or a NaN). Surfacing Internal is
+		// correct: it is our bug, and the caller can do nothing about it.
+		return nil, status.Error(codes.Internal, "content is not representable")
+	}
+
+	return &catalogv1.GetEventContentResponse{
+		Content: body,
+		Kind:    catalogv1.EventKind(content.Kind),
+	}, nil
 }
 
 // toStatus maps domain errors to gRPC codes. Unmapped errors become Internal

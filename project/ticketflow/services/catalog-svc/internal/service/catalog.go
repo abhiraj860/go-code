@@ -37,9 +37,10 @@ type Repo interface {
 }
 
 // ContentRepo fetches variable-shape event content from MongoDB. Optional --
-// when nil, events are served without their content document.
+// when nil, GetEventContent reports NotFound and the rest of the service is
+// unaffected, so catalog still serves without Mongo running.
 type ContentRepo interface {
-	GetContent(ctx context.Context, eventID string) (map[string]any, error)
+	GetContent(ctx context.Context, eventID string) (domain.EventContent, error)
 }
 
 // Catalog serves catalog reads through a two-tier cache.
@@ -49,6 +50,7 @@ type Catalog struct {
 
 	events   *cache.Loader[string, domain.Event]
 	seatMaps *cache.Loader[string, domain.SeatMap]
+	contents *cache.Loader[string, domain.EventContent]
 }
 
 // Options configures the service.
@@ -139,7 +141,55 @@ func New(opts Options) *Catalog {
 		},
 	})
 
+	// Content is cached on the same terms as the event itself: it is editorial
+	// copy that changes when a promoter edits it, not on a schedule.
+	if opts.Content != nil {
+		c.contents = cache.NewLoader(cache.LoaderOptions[string, domain.EventContent]{
+			L1: cache.New[string, domain.EventContent](cache.Options{
+				MaxEntries: opts.MaxCachedEvents,
+				TTL:        opts.EventTTL,
+			}),
+			L2:    opts.L2,
+			Codec: jsonCodec[domain.EventContent]{},
+			KeyFn: func(id string) string {
+				return fmt.Sprintf("catalog:content:%s:s%d", id, schemaVersion)
+			},
+			L2TTL: opts.L2TTL,
+			// Longer than the event's: most events never get a content
+			// document, and repeatedly asking Mongo for one that does not
+			// exist is exactly what negative caching is for.
+			NegativeTTL: 60 * time.Second,
+			Fetch: func(ctx context.Context, id string) (domain.EventContent, error) {
+				content, err := opts.Content.GetContent(ctx, id)
+				if errors.Is(err, domain.ErrNotFound) {
+					return domain.EventContent{}, cache.ErrNotFound
+				}
+				return content, err
+			},
+		})
+	}
+
 	return c
+}
+
+// GetEventContent returns an event's editorial content.
+//
+// Reports NotFound when Mongo was not configured, so the service degrades to
+// "no content" rather than failing outright -- content is enrichment, and an
+// event page without a setlist is still a usable event page.
+func (c *Catalog) GetEventContent(ctx context.Context, id string) (domain.EventContent, error) {
+	if id == "" {
+		return domain.EventContent{}, fmt.Errorf("%w: event id is required", ErrInvalidArgument)
+	}
+	if c.contents == nil {
+		return domain.EventContent{}, domain.ErrNotFound
+	}
+
+	content, err := c.contents.Get(ctx, id)
+	if errors.Is(err, cache.ErrNotFound) {
+		return domain.EventContent{}, domain.ErrNotFound
+	}
+	return content, err
 }
 
 // GetEvent returns an event, served from cache when possible.
@@ -202,10 +252,21 @@ func (c *Catalog) InvalidateEventLocal(id string) {
 	c.events.InvalidateLocal(id)
 }
 
-// CacheStats exposes both loaders' counters for the /metrics endpoint. Hit
-// ratio is the number that matters; Phase 7 tunes TTLs against it.
-func (c *Catalog) CacheStats() (events, seatMaps cache.LoaderStats) {
-	return c.events.Stats(), c.seatMaps.Stats()
+// CacheStats exposes every loader's counters for the /metrics endpoint, keyed
+// by cache name. Hit ratio is the number that matters; Phase 7 tunes TTLs
+// against it.
+//
+// Returning a map rather than named values so adding a cache cannot silently
+// leave it unexported -- an uninstrumented cache is a guess.
+func (c *Catalog) CacheStats() map[string]cache.LoaderStats {
+	stats := map[string]cache.LoaderStats{
+		"event":   c.events.Stats(),
+		"seatmap": c.seatMaps.Stats(),
+	}
+	if c.contents != nil {
+		stats["content"] = c.contents.Stats()
+	}
+	return stats
 }
 
 // ErrInvalidArgument marks a caller error, mapped to gRPC InvalidArgument.

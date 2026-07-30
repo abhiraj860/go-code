@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
@@ -98,8 +99,22 @@ func run() error {
 		l2 = redisStore
 	}
 
+	// Mongo holds editorial content. Like Redis it is treated as optional:
+	// content is enrichment, and an event page without a setlist is still a
+	// usable event page. Refusing to boot over it would be the wrong trade.
+	var content service.ContentRepo
+	mongoClient, err := repo.ConnectMongo(ctx, cfg.mongoURI, cfg.mongoTimeout)
+	if err != nil {
+		logger.Warn("mongo unavailable, serving without event content",
+			slog.Any("error", err))
+	} else {
+		defer func() { _ = mongoClient.Disconnect(context.Background()) }()
+		content = repo.NewContentRepo(mongoClient)
+	}
+
 	svc := service.New(service.Options{
 		Repo:       repo.NewEventRepo(pool),
+		Content:    content,
 		L2:         l2,
 		EventTTL:   cfg.eventTTL,
 		SeatMapTTL: cfg.seatMapTTL,
@@ -199,10 +214,20 @@ func adminMux(svc *service.Catalog) *http.ServeMux {
 	// Cache hit ratios, which Phase 7 uses to tune TTLs. Prometheus-style text
 	// so this endpoint can be scraped directly later.
 	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, _ *http.Request) {
-		events, seatMaps := svc.CacheStats()
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-		writeCacheMetrics(w, "event", events)
-		writeCacheMetrics(w, "seatmap", seatMaps)
+
+		stats := svc.CacheStats()
+		// Sorted so the output is stable between scrapes, which makes diffing
+		// two captures during an incident actually readable.
+		names := make([]string, 0, len(stats))
+		for name := range stats {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
+			writeCacheMetrics(w, name, stats[name])
+		}
 	})
 
 	return mux
@@ -224,6 +249,8 @@ type appConfig struct {
 	dbMaxConns      int
 	redisAddr       string
 	redisDB         int
+	mongoURI        string
+	mongoTimeout    time.Duration
 	eventTTL        time.Duration
 	seatMapTTL      time.Duration
 	l2TTL           time.Duration
@@ -244,6 +271,8 @@ func loadConfig() (appConfig, error) {
 		// DB 0 is the cache database; seat-hold locks live in DB 1 so an
 		// evicting maxmemory policy can never discard a lock.
 		redisDB:         l.Int("REDIS_DB", 0),
+		mongoURI:        l.String("MONGO_URI", "mongodb://ticketflow:ticketflow@localhost:27017/?authSource=admin"),
+		mongoTimeout:    l.Duration("MONGO_TIMEOUT", 5*time.Second),
 		eventTTL:        l.Duration("EVENT_TTL", 30*time.Second),
 		seatMapTTL:      l.Duration("SEAT_MAP_TTL", 10*time.Minute),
 		l2TTL:           l.Duration("L2_TTL", time.Hour),

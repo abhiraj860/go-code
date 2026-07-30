@@ -105,6 +105,20 @@ type SeatMap struct {
 	Version       int64
 }
 
+// EventContent is editorial content whose shape varies by event kind, stored
+// in MongoDB.
+//
+// Body is intentionally untyped. A concert carries a setlist and support acts,
+// a fixture carries squads and a table, a play carries a cast and an interval.
+// Giving this a Go struct would mean a type that is mostly nil fields, and the
+// variability would resurface as type switches at every call site.
+type EventContent struct {
+	EventID   string
+	Kind      EventKind
+	Body      map[string]any
+	UpdatedAt time.Time
+}
+
 // ListFilter narrows a browse query. A zero value lists upcoming on-sale
 // events across every city.
 type ListFilter struct {
