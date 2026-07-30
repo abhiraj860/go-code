@@ -73,6 +73,46 @@ jobs:
     defaults:
       run:
         working-directory: project/ticketflow
+
+    # Real dependencies, because the tests that matter most here are integration
+    # tests. Without these the suite would skip them and report a green build --
+    # confidence without coverage. TF_REQUIRE_INTEGRATION below turns any such
+    # skip into a failure, so a broken service definition cannot hide.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ticketflow
+          POSTGRES_PASSWORD: ticketflow
+          POSTGRES_DB: ticketflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ticketflow -d ticketflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      mongo:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: ticketflow
+          MONGO_INITDB_ROOT_PASSWORD: ticketflow
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -90,7 +130,27 @@ jobs:
           cd pkg && go vet ./...
 
       - name: test
+        env:
+          # Any test that would skip for a missing dependency fails instead.
+          # A skipped test is indistinguishable from a passing one in the CI
+          # summary, so without this a misconfigured service container yields
+          # a green build in which the no-double-sell test never ran.
+          TF_REQUIRE_INTEGRATION: "1"
         run: make test TESTFLAGS="-race -count=1"
+
+      # Belt and braces: assert the concurrency test that the whole project
+      # exists to guarantee actually executed, rather than trusting the exit code.
+      - name: assert the no-double-sell test ran
+        env:
+          TF_REQUIRE_INTEGRATION: "1"
+        run: |
+          out=$(go test -count=1 -run TestConcurrentHoldsOnOneSeatProduceExactlyOneWinner \
+                  -v ./services/inventory-svc/internal/repo/ 2>&1)
+          echo "$out"
+          if ! grep -q -- "--- PASS: TestConcurrentHoldsOnOneSeatProduceExactlyOneWinner" <<<"$out"; then
+            echo "::error::the no-double-sell concurrency test did not run to a PASS"
+            exit 1
+          fi
 
   lint:
     name: golangci-lint

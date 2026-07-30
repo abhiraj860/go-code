@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -24,6 +25,7 @@ import (
 	inventoryv1 "github.com/abhiraj860/ticketflow/proto/gen/ticketflow/inventory/v1"
 	inventory "github.com/abhiraj860/ticketflow/services/inventory-svc"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/grpcserver"
+	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/lock"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/repo"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/service"
 )
@@ -77,8 +79,34 @@ func run() error {
 	}
 	defer pool.Close()
 
+	// Advisory Redis fast path. Locks live in DB 1, kept apart from the cache
+	// (DB 0) because the cache may run an evicting maxmemory policy and
+	// evicting a lock would silently disable the fast path.
+	//
+	// Optional by design: if Redis is unreachable the service is still correct,
+	// Postgres simply absorbs the losing requests too. Refusing to boot over an
+	// optimisation would be the wrong trade.
+	var locker service.SeatLocker
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:         cfg.redisAddr,
+		DB:           cfg.redisDB,
+		DialTimeout:  2 * time.Second,
+		ReadTimeout:  200 * time.Millisecond,
+		WriteTimeout: 200 * time.Millisecond,
+	})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		logger.Warn("redis unavailable, seat holds will go straight to postgres",
+			slog.String("addr", cfg.redisAddr), slog.Any("error", err))
+		_ = redisClient.Close()
+	} else {
+		defer func() { _ = redisClient.Close() }()
+		locker = lock.NewSeatLocker(redisClient)
+		logger.Info("seat lock fast path enabled", slog.String("addr", cfg.redisAddr))
+	}
+
 	svc := service.New(service.Options{
 		Repo:       repo.NewSeatRepo(pool),
+		Locker:     locker,
 		Logger:     logger,
 		DefaultTTL: cfg.holdTTL,
 		MaxTTL:     cfg.maxHoldTTL,
@@ -166,6 +194,8 @@ type appConfig struct {
 	httpAddr        string
 	dbDSN           string
 	dbMaxConns      int
+	redisAddr       string
+	redisDB         int
 	holdTTL         time.Duration
 	maxHoldTTL      time.Duration
 	reaperInterval  time.Duration
@@ -183,6 +213,8 @@ func loadConfig() (appConfig, error) {
 		httpAddr:        l.String("HTTP_ADDR", ":9112"),
 		dbDSN:           l.Required("DB_DSN"),
 		dbMaxConns:      l.Int("DB_MAX_CONNS", 20),
+		redisAddr:       l.String("REDIS_ADDR", "localhost:6379"),
+		redisDB:         l.Int("REDIS_DB", 1),
 		holdTTL:         l.Duration("HOLD_TTL", 2*time.Minute),
 		maxHoldTTL:      l.Duration("MAX_HOLD_TTL", 10*time.Minute),
 		reaperInterval:  l.Duration("REAPER_INTERVAL", 10*time.Second),

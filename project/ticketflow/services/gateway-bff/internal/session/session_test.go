@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"github.com/abhiraj860/ticketflow/pkg/testsupport"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func newTestStore(t *testing.T, ttl time.Duration) *Store {
 
 	if err := client.Ping(ctx).Err(); err != nil {
 		_ = client.Close()
-		t.Skipf("redis not reachable (run `make up`): %v", err)
+		testsupport.SkipOrFail(t, "redis not reachable (run `make up`): %v", err)
 	}
 	if err := client.FlushDB(ctx).Err(); err != nil {
 		t.Fatalf("flushing test db: %v", err)

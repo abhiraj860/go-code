@@ -37,9 +37,20 @@ type Repo interface {
 	SeedSeats(ctx context.Context, eventID string, seatIDs []string) (int, error)
 }
 
+// SeatLocker is the advisory Redis fast path.
+//
+// Optional: a nil locker means every request goes straight to Postgres, which
+// is correct, just less efficient under contention. Implementations must never
+// let a lock failure become a grant.
+type SeatLocker interface {
+	Acquire(ctx context.Context, eventID string, seatIDs []string, owner string, ttl time.Duration) (acquired, rejected []string, err error)
+	Release(ctx context.Context, eventID string, seatIDs []string, owner string) error
+}
+
 // Inventory serves seat availability and holds.
 type Inventory struct {
 	repo   Repo
+	locker SeatLocker
 	logger *slog.Logger
 
 	defaultTTL time.Duration
@@ -47,7 +58,10 @@ type Inventory struct {
 }
 
 type Options struct {
-	Repo       Repo
+	Repo Repo
+	// Locker is optional. Without it the service is still correct; Postgres
+	// simply absorbs the losing requests too.
+	Locker     SeatLocker
 	Logger     *slog.Logger
 	DefaultTTL time.Duration
 	MaxTTL     time.Duration
@@ -65,6 +79,7 @@ func New(opts Options) *Inventory {
 	}
 	return &Inventory{
 		repo:       opts.Repo,
+		locker:     opts.Locker,
 		logger:     opts.Logger,
 		defaultTTL: opts.DefaultTTL,
 		maxTTL:     opts.MaxTTL,
@@ -105,9 +120,55 @@ func (i *Inventory) HoldSeats(ctx context.Context, req domain.HoldRequest) (doma
 
 	req.TTL = i.clampTTL(req.TTL)
 
+	// Redis fast path. Everything below obeys one rule: Redis may only cause a
+	// REJECTION, never a GRANT. Postgres decides who actually owns a seat.
+	var (
+		lockRejected []string
+		// The owner is the logical attempt, not the process, so a retry of the
+		// same request re-acquires its own locks instead of colliding with them.
+		lockOwner = req.UserID + ":" + req.IdempotencyKey
+	)
+
+	if i.locker != nil {
+		acquired, rejected, err := i.locker.Acquire(ctx, req.EventID, req.SeatIDs, lockOwner, req.TTL)
+		switch {
+		case err != nil:
+			// Redis is unusable. Fall through to Postgres with the full seat
+			// list -- exactly the behaviour with no Redis at all. Never treat a
+			// lock failure as a rejection.
+			i.logger.WarnContext(ctx, "seat lock unavailable, proceeding without the fast path",
+				slog.Any("error", err))
+		case len(acquired) == 0:
+			// Every seat is locked by someone else. This is the case the fast
+			// path exists for: reject without opening a transaction.
+			return domain.HoldResult{RejectedSeatIDs: rejected}, domain.ErrNoSeatsAvailable
+		default:
+			req.SeatIDs = acquired
+			lockRejected = rejected
+		}
+	}
+
 	result, err := i.repo.HoldSeats(ctx, req)
 	if err != nil {
+		// Postgres said no. Drop the locks we took so the seats are not held
+		// out of circulation until their TTL lapses.
+		i.releaseLocks(ctx, req.EventID, req.SeatIDs, lockOwner)
+		if len(lockRejected) > 0 {
+			result.RejectedSeatIDs = append(result.RejectedSeatIDs, lockRejected...)
+		}
 		return result, err
+	}
+
+	// Postgres is the authority: any seat we locked but did not win must have
+	// its lock released immediately.
+	if lost := difference(req.SeatIDs, result.Hold.SeatIDs); len(lost) > 0 {
+		i.releaseLocks(ctx, req.EventID, lost, lockOwner)
+	}
+
+	// Report every rejection, whether it came from Redis or Postgres, so the UI
+	// can tell the buyer exactly which seats they missed.
+	if len(lockRejected) > 0 {
+		result.RejectedSeatIDs = append(result.RejectedSeatIDs, lockRejected...)
 	}
 
 	if result.Replayed {
@@ -115,6 +176,36 @@ func (i *Inventory) HoldSeats(ctx context.Context, req domain.HoldRequest) (doma
 			slog.String("hold_id", result.Hold.ID), slog.String("user_id", req.UserID))
 	}
 	return result, nil
+}
+
+// releaseLocks is best effort: a failure only means seats stay locked until
+// their TTL lapses, which costs a brief spurious rejection, not correctness.
+func (i *Inventory) releaseLocks(ctx context.Context, eventID string, seatIDs []string, owner string) {
+	if i.locker == nil || len(seatIDs) == 0 {
+		return
+	}
+	if err := i.locker.Release(ctx, eventID, seatIDs, owner); err != nil {
+		i.logger.WarnContext(ctx, "releasing seat locks failed; they will expire on their own",
+			slog.Any("error", err))
+	}
+}
+
+// difference returns items in a that are absent from b.
+func difference(a, b []string) []string {
+	if len(b) == 0 {
+		return a
+	}
+	inB := make(map[string]struct{}, len(b))
+	for _, s := range b {
+		inB[s] = struct{}{}
+	}
+	var out []string
+	for _, s := range a {
+		if _, ok := inB[s]; !ok {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // clampTTL bounds a requested lifetime rather than rejecting it, so a client
@@ -133,6 +224,12 @@ func (i *Inventory) clampTTL(ttl time.Duration) time.Duration {
 }
 
 // ReleaseHold returns seats to the pool.
+//
+// Note it does NOT clear the Redis locks: the repo reports only a count, not
+// which seats, and the lock owner string is not recoverable from a hold id.
+// The locks lapse on their own TTL, which is set to the hold TTL, so the window
+// is bounded and the failure mode is a brief spurious rejection -- the safe
+// direction. Phase 7 can revisit this if the load test shows it matters.
 func (i *Inventory) ReleaseHold(ctx context.Context, holdID string) (int, error) {
 	if holdID == "" {
 		return 0, fmt.Errorf("%w: hold id is required", domain.ErrInvalidArgument)

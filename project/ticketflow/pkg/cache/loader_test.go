@@ -386,3 +386,30 @@ func TestNewLoaderPanicsOnMissingRequiredFields(t *testing.T) {
 		})
 	}
 }
+
+func TestLoaderStatsHitRatio(t *testing.T) {
+	tests := []struct {
+		name  string
+		stats LoaderStats
+		want  float64
+	}{
+		{"nothing read yet", LoaderStats{}, 0},
+		{"all hits", LoaderStats{L1Hits: 10}, 1},
+		{"all misses", LoaderStats{Fetches: 10}, 0},
+		{"both tiers count as hits", LoaderStats{L1Hits: 3, L2Hits: 1, Fetches: 4}, 0.5},
+		// A cached "not found" spared the origin a query just as much as a
+		// cached value did.
+		{"negative hits count", LoaderStats{NegativeHits: 2, Fetches: 2}, 0.5},
+		// Coalesced requests waited on an in-flight fetch; counting them would
+		// inflate the ratio exactly when a stampede made the cache look best.
+		{"coalesced excluded", LoaderStats{L1Hits: 1, Fetches: 1, Coalesced: 98}, 0.5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.stats.HitRatio(); got != tt.want {
+				t.Errorf("HitRatio() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

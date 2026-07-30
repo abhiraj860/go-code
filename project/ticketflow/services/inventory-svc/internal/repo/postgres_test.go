@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/abhiraj860/ticketflow/pkg/postgres"
+	"github.com/abhiraj860/ticketflow/pkg/testsupport"
 	inventory "github.com/abhiraj860/ticketflow/services/inventory-svc"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/domain"
 )
@@ -32,12 +33,12 @@ func newTestRepo(t *testing.T) *SeatRepo {
 	ctx := context.Background()
 	adminPool, err := pgxpool.New(ctx, admin)
 	if err != nil {
-		t.Skipf("postgres not reachable (run `make up`): %v", err)
+		testsupport.SkipOrFail(t, "postgres not reachable (run `make up`): %v", err)
 	}
 	defer adminPool.Close()
 
 	if err := adminPool.Ping(ctx); err != nil {
-		t.Skipf("postgres not reachable (run `make up`): %v", err)
+		testsupport.SkipOrFail(t, "postgres not reachable (run `make up`): %v", err)
 	}
 
 	name := fmt.Sprintf("tf_inv_test_%d", time.Now().UnixNano())

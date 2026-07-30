@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"github.com/abhiraj860/ticketflow/pkg/testsupport"
 	"os"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func redisAddr(t *testing.T) string {
 
 	store, err := NewRedisStore(ctx, RedisOptions{Addr: addr, DB: 15})
 	if err != nil {
-		t.Skipf("redis not reachable at %s (run `make up`): %v", addr, err)
+		testsupport.SkipOrFail(t, "redis not reachable at %s (run `make up`): %v", addr, err)
 	}
 	_ = store.Close()
 	return addr

@@ -72,6 +72,23 @@ type LoaderStats struct {
 	Errors    uint64
 }
 
+// HitRatio returns the share of reads answered from either cache tier rather
+// than the system of record, or 0 when nothing has been read.
+//
+// Negative hits count as hits: a cached "not found" spared the origin a query
+// just as much as a cached value did, which is the entire point of storing one.
+// Coalesced requests are excluded -- they waited on an in-flight fetch rather
+// than being answered by the cache, so counting them would inflate the ratio
+// precisely when a stampede made the cache look best.
+func (s LoaderStats) HitRatio() float64 {
+	hits := s.L1Hits + s.L2Hits + s.NegativeHits
+	total := hits + s.Fetches
+	if total == 0 {
+		return 0
+	}
+	return float64(hits) / float64(total)
+}
+
 // Loader is a read-through cache over two tiers with single-flight protection.
 //
 // Read path: L1 -> L2 -> Fetch. A miss at every tier issues exactly one Fetch

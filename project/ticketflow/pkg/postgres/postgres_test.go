@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"github.com/abhiraj860/ticketflow/pkg/testsupport"
 	"io/fs"
 	"os"
 	"strings"
@@ -29,7 +30,7 @@ func requirePostgres(t *testing.T) string {
 
 	pool, err := Connect(ctx, Options{DSN: dsn, ConnectTimeout: time.Second})
 	if err != nil {
-		t.Skipf("postgres not reachable (run `make up`): %v", err)
+		testsupport.SkipOrFail(t, "postgres not reachable (run `make up`): %v", err)
 	}
 	pool.Close()
 	return dsn
