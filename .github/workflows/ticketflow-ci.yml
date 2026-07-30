@@ -1,0 +1,109 @@
+name: ticketflow-ci
+
+# Scoped to the ticketflow subtree so unrelated dsa/lld commits don't burn CI minutes.
+on:
+  push:
+    branches: [main]
+    paths: ["project/ticketflow/**", ".github/workflows/ticketflow-ci.yml"]
+  pull_request:
+    paths: ["project/ticketflow/**", ".github/workflows/ticketflow-ci.yml"]
+
+# A newer push to the same branch cancels the in-flight run.
+concurrency:
+  group: ticketflow-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.25"
+  BUF_VERSION: "1.47.2"
+
+jobs:
+  proto:
+    name: proto (lint, breaking, codegen drift)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project/ticketflow
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # buf breaking needs history to diff against the main branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: project/ticketflow/**/go.sum
+
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: ${{ env.BUF_VERSION }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: buf lint
+        run: cd proto && buf lint
+
+      # The contract gate: a wire-incompatible edit to a released v1 package
+      # fails here. Breaking changes must ship as an additive new version.
+      - name: buf breaking
+        if: github.event_name == 'pull_request'
+        run: |
+          cd proto
+          buf breaking --against \
+            "https://github.com/${{ github.repository }}.git#branch=main,subdir=project/ticketflow/proto"
+
+      - name: install protoc plugins
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.2
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+
+      # Generated code is committed, so a stale checkout is a real bug: someone
+      # edited a .proto and forgot `make proto`. Regenerate and diff.
+      - name: verify generated code is current
+        run: |
+          make proto
+          if ! git diff --exit-code -- proto/gen; then
+            echo "::error::proto/gen is stale -- run 'make proto' and commit the result"
+            exit 1
+          fi
+
+  go:
+    name: go (build, vet, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project/ticketflow
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: project/ticketflow/**/go.sum
+
+      - name: build
+        run: make build
+
+      - name: vet
+        run: |
+          go vet ./...
+          cd pkg && go vet ./...
+
+      - name: test
+        run: make test TESTFLAGS="-race -count=1"
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: project/ticketflow/**/go.sum
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2
+          working-directory: project/ticketflow

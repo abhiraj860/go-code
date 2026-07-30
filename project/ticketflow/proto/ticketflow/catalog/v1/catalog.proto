@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package ticketflow.catalog.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Catalog owns the *descriptive* half of an event: what it is, where it is, and
+// what the seating geometry looks like. It deliberately owns no availability
+// state -- that belongs to inventory, because availability needs transactions
+// and catalog data does not.
+//
+// Schema conventions used throughout this repo:
+//   * every enum has an _UNSPECIFIED = 0 member, so an unset field is detectable
+//   * money is int64 minor units (paise/cents), never a float
+//   * timestamps are google.protobuf.Timestamp, always UTC
+//   * field numbers 1-15 are reserved for hot fields (1-byte tag encoding)
+
+// EventKind drives which content shape the Mongo document carries. A concert
+// and a football fixture have genuinely different metadata, so the document
+// body is loosely typed while this discriminator stays strict.
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_CONCERT = 1;
+  EVENT_KIND_SPORTS = 2;
+  EVENT_KIND_THEATRE = 3;
+  EVENT_KIND_CONFERENCE = 4;
+}
+
+enum EventStatus {
+  EVENT_STATUS_UNSPECIFIED = 0;
+  // Visible in search, but seats cannot be held yet -- the drop has not opened.
+  EVENT_STATUS_ANNOUNCED = 1;
+  EVENT_STATUS_ON_SALE = 2;
+  EVENT_STATUS_SOLD_OUT = 3;
+  EVENT_STATUS_CANCELLED = 4;
+}
+
+message Money {
+  // Minor units: 1250 with currency_code "INR" means Rs 12.50.
+  int64 amount_minor = 1;
+  // ISO-4217, e.g. "INR", "USD".
+  string currency_code = 2;
+}
+
+message Venue {
+  string id = 1;
+  string name = 2;
+  string city = 3;
+  string country_code = 4;
+  // Free-form; the seat map carries the structured geometry.
+  string address = 5;
+  double latitude = 6;
+  double longitude = 7;
+}
+
+// PricingTier is catalog-owned because prices change rarely and are safe to
+// cache aggressively. Inventory references a tier by id, never by price.
+message PricingTier {
+  string id = 1;
+  string name = 2;
+  Money price = 3;
+}
+
+message Event {
+  string id = 1;
+  string title = 2;
+  EventKind kind = 3;
+  EventStatus status = 4;
+  Venue venue = 5;
+  google.protobuf.Timestamp starts_at = 6;
+  google.protobuf.Timestamp ends_at = 7;
+  // When seats become holdable. The waiting room opens shortly before this.
+  google.protobuf.Timestamp sale_opens_at = 8;
+  repeated PricingTier pricing_tiers = 9;
+  string seat_map_id = 10;
+  repeated string tags = 11;
+  string poster_url = 12;
+
+  // Bumped whenever the event is mutated. Used as part of the cache key so a
+  // stale L1 entry can be detected rather than merely expiring.
+  int64 version = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+// A seat's fixed geometry -- where it physically is. Deliberately separate from
+// its availability, which lives in inventory and changes thousands of times a
+// second during a drop. This split is what makes the seat map safe to cache.
+message Seat {
+  string id = 1;
+  string section = 2;
+  string row = 3;
+  string number = 4;
+  string pricing_tier_id = 5;
+  // Rendering coordinates within the seat map's viewbox.
+  float x = 6;
+  float y = 7;
+}
+
+message SeatMap {
+  string id = 1;
+  string venue_id = 2;
+  repeated Seat seats = 3;
+  float viewbox_width = 4;
+  float viewbox_height = 5;
+  int64 version = 6;
+}
+
+message GetEventRequest {
+  string event_id = 1;
+}
+
+message GetEventResponse {
+  Event event = 1;
+}
+
+message ListEventsRequest {
+  string city = 1;
+  EventKind kind = 2;
+  // Opaque cursor; empty means "from the start".
+  string page_token = 3;
+  int32 page_size = 4;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  string next_page_token = 2;
+}
+
+message GetSeatMapRequest {
+  string seat_map_id = 1;
+}
+
+message GetSeatMapResponse {
+  SeatMap seat_map = 1;
+}
+
+service CatalogService {
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  rpc GetSeatMap(GetSeatMapRequest) returns (GetSeatMapResponse);
+}

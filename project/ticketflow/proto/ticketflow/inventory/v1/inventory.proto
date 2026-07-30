@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package ticketflow.inventory.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Inventory is the source of truth for "can I have this seat". Every RPC here
+// is correctness-critical and none of its responses may be cached -- see the
+// caching notes in the plan. Postgres holds the authoritative allocation;
+// Redis holds a short TTL lock purely so the UI can react instantly.
+
+enum SeatStatus {
+  SEAT_STATUS_UNSPECIFIED = 0;
+  SEAT_STATUS_AVAILABLE = 1;
+  // Held by someone (possibly the caller) until hold_expires_at.
+  SEAT_STATUS_HELD = 2;
+  SEAT_STATUS_SOLD = 3;
+  // Taken out of sale by an operator: broken seat, restricted view, kill.
+  SEAT_STATUS_BLOCKED = 4;
+}
+
+message SeatAvailability {
+  string seat_id = 1;
+  SeatStatus status = 2;
+  // Only set when status is HELD. Lets the client render a countdown without
+  // asking again.
+  google.protobuf.Timestamp hold_expires_at = 3;
+}
+
+message GetAvailabilityRequest {
+  string event_id = 1;
+  // Empty means "all seats for the event". Callers rendering a single section
+  // should scope this down -- a full arena is ~20k seats.
+  repeated string seat_ids = 2;
+}
+
+message GetAvailabilityResponse {
+  repeated SeatAvailability seats = 1;
+  // Monotonic per event. The realtime gateway uses it to drop out-of-order
+  // WebSocket frames instead of rendering a stale seat state.
+  int64 sequence = 2;
+}
+
+message HoldSeatsRequest {
+  string event_id = 1;
+  repeated string seat_ids = 2;
+  string user_id = 3;
+  // Caller-generated. Retrying a timed-out hold with the same key returns the
+  // original hold rather than grabbing a second set of seats.
+  string idempotency_key = 4;
+  // Requested lifetime; the server clamps it to its configured maximum.
+  int32 ttl_seconds = 5;
+}
+
+message HoldSeatsResponse {
+  string hold_id = 1;
+  repeated string held_seat_ids = 2;
+  // Populated when a partial hold occurred: someone else won these seats.
+  repeated string rejected_seat_ids = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message ReleaseHoldRequest {
+  string hold_id = 1;
+}
+
+message ReleaseHoldResponse {
+  int32 released_seat_count = 1;
+}
+
+// Called by order-svc inside its own transaction boundary once payment has
+// settled. Converts HELD -> SOLD. Fails loudly if the hold already expired.
+message ConfirmHoldRequest {
+  string hold_id = 1;
+  string order_id = 2;
+}
+
+message ConfirmHoldResponse {
+  repeated string sold_seat_ids = 1;
+}
+
+service InventoryService {
+  rpc GetAvailability(GetAvailabilityRequest) returns (GetAvailabilityResponse);
+  rpc HoldSeats(HoldSeatsRequest) returns (HoldSeatsResponse);
+  rpc ReleaseHold(ReleaseHoldRequest) returns (ReleaseHoldResponse);
+  rpc ConfirmHold(ConfirmHoldRequest) returns (ConfirmHoldResponse);
+}

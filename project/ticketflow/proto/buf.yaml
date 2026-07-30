@@ -1,0 +1,19 @@
+version: v2
+
+modules:
+  - path: .
+
+lint:
+  use:
+    - STANDARD
+  except:
+    # We intentionally keep request/response messages in the same file as the
+    # service they belong to; STANDARD's file-per-RPC guidance is noise at this size.
+    - RPC_REQUEST_RESPONSE_UNIQUE
+
+breaking:
+  use:
+    - FILE
+  # CI runs `buf breaking --against '.git#branch=main,subdir=project/ticketflow/proto'`.
+  # A wire-incompatible change to a v1 package fails the build -- the v1->v2 migration
+  # in Phase 2 has to be an additive new package, not an edit to v1.
