@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,11 +22,13 @@ import (
 
 	"github.com/abhiraj860/ticketflow/pkg/cache"
 	"github.com/abhiraj860/ticketflow/pkg/config"
+	tfkafka "github.com/abhiraj860/ticketflow/pkg/kafka"
 	"github.com/abhiraj860/ticketflow/pkg/logging"
 	"github.com/abhiraj860/ticketflow/pkg/postgres"
 	catalogv1 "github.com/abhiraj860/ticketflow/proto/gen/ticketflow/catalog/v1"
 	catalog "github.com/abhiraj860/ticketflow/services/catalog-svc"
 	"github.com/abhiraj860/ticketflow/services/catalog-svc/internal/grpcserver"
+	"github.com/abhiraj860/ticketflow/services/catalog-svc/internal/invalidator"
 	"github.com/abhiraj860/ticketflow/services/catalog-svc/internal/repo"
 	"github.com/abhiraj860/ticketflow/services/catalog-svc/internal/service"
 )
@@ -121,6 +124,48 @@ func run() error {
 		L2TTL:      cfg.l2TTL,
 	})
 
+	// Cache invalidation over Kafka. Each replica needs its OWN consumer group:
+	// a shared group would deliver each message to exactly one replica, when
+	// every replica must hear it to drop its local copy. The instance id makes
+	// the group unique per process.
+	var inv *invalidator.Invalidator
+	if cfg.kafkaBrokers != "" {
+		dlqProducer, err := tfkafka.NewProducer(tfkafka.ProducerOptions{
+			Brokers: strings.Split(cfg.kafkaBrokers, ","),
+		})
+		if err != nil {
+			logger.Warn("kafka unavailable, L1 caches will only expire on TTL",
+				slog.Any("error", err))
+		} else {
+			defer func() { _ = dlqProducer.Close() }()
+
+			consumer, err := tfkafka.NewConsumer(tfkafka.ConsumerOptions{
+				Brokers: strings.Split(cfg.kafkaBrokers, ","),
+				Topic:   tfkafka.TopicCatalogEventUpdated,
+				GroupID: "catalog-invalidator-" + instanceID(),
+				// Serial: invalidation is a map delete, so parallelism would
+				// add contention without adding throughput.
+				Concurrency: 1,
+				BatchSize:   50,
+				MaxAttempts: 2,
+				DLQTopic:    tfkafka.TopicDLQ,
+				DLQProducer: dlqProducer,
+				Logger:      logger,
+			})
+			if err != nil {
+				logger.Warn("could not start invalidation consumer", slog.Any("error", err))
+			} else {
+				defer func() { _ = consumer.Close() }()
+				inv = invalidator.New(consumer, svc, logger)
+				go func() {
+					if err := inv.Run(ctx); err != nil {
+						logger.Error("invalidation consumer stopped", slog.Any("error", err))
+					}
+				}()
+			}
+		}
+	}
+
 	grpcServer := grpc.NewServer()
 	catalogv1.RegisterCatalogServiceServer(grpcServer, grpcserver.New(svc))
 
@@ -202,6 +247,17 @@ func run() error {
 	return nil
 }
 
+// instanceID returns a per-process identifier, used to give this replica its
+// own Kafka consumer group. Hostname in Kubernetes is the pod name; the PID
+// keeps two local processes distinct during development.
+func instanceID() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "unknown"
+	}
+	return fmt.Sprintf("%s-%d", host, os.Getpid())
+}
+
 // adminMux serves liveness and cache statistics.
 func adminMux(svc *service.Catalog) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -251,6 +307,7 @@ type appConfig struct {
 	redisDB         int
 	mongoURI        string
 	mongoTimeout    time.Duration
+	kafkaBrokers    string
 	eventTTL        time.Duration
 	seatMapTTL      time.Duration
 	l2TTL           time.Duration
@@ -273,6 +330,7 @@ func loadConfig() (appConfig, error) {
 		redisDB:         l.Int("REDIS_DB", 0),
 		mongoURI:        l.String("MONGO_URI", "mongodb://ticketflow:ticketflow@localhost:27017/?authSource=admin"),
 		mongoTimeout:    l.Duration("MONGO_TIMEOUT", 5*time.Second),
+		kafkaBrokers:    l.String("KAFKA_BROKERS", "localhost:9092"),
 		eventTTL:        l.Duration("EVENT_TTL", 30*time.Second),
 		seatMapTTL:      l.Duration("SEAT_MAP_TTL", 10*time.Minute),
 		l2TTL:           l.Duration("L2_TTL", time.Hour),
