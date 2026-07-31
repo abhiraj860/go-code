@@ -130,4 +130,39 @@ test('broadcast to an empty room is a no-op', () => {
     const hub = new Hub();
     assert.equal(hub.broadcast(update()), 0);
 });
+// Regression test for a real bug. The publisher gives every seat in one hold
+// the same sequence, because they change at the same logical moment. With a
+// per-EVENT watermark the first seat set the bar and every other seat in that
+// hold was discarded as stale, so a two-seat hold delivered one update and the
+// browser showed one seat still free.
+test('seats sharing a sequence are all delivered', () => {
+    const hub = new Hub();
+    const client = fakeClient();
+    hub.subscribe(client, 'evt-1');
+    // Exactly what a two-seat hold publishes.
+    assert.equal(hub.broadcast(update({ seatId: 'A-1', status: 'held', sequence: 1 })), 1);
+    assert.equal(hub.broadcast(update({ seatId: 'A-2', status: 'held', sequence: 1 })), 1);
+    assert.equal(client.sent.length, 2, 'a seat sharing a sequence with another was dropped');
+    assert.deepEqual(client.sent.map((s) => JSON.parse(s).seatId).sort(), ['A-1', 'A-2']);
+});
+test('the stale guard still applies per seat', () => {
+    const hub = new Hub();
+    const client = fakeClient();
+    hub.subscribe(client, 'evt-1');
+    assert.equal(hub.broadcast(update({ seatId: 'A-1', status: 'sold', sequence: 5 })), 1);
+    // Older state for the SAME seat is still dropped.
+    assert.equal(hub.broadcast(update({ seatId: 'A-1', status: 'available', sequence: 4 })), 0);
+    // But a different seat at a lower sequence is unaffected.
+    assert.equal(hub.broadcast(update({ seatId: 'A-2', status: 'held', sequence: 2 })), 1);
+});
+test('per-seat watermarks are reclaimed with the room', () => {
+    const hub = new Hub();
+    const client = fakeClient();
+    hub.subscribe(client, 'evt-1');
+    for (let i = 0; i < 500; i++) {
+        hub.broadcast(update({ seatId: `S-${i}`, sequence: 1 }));
+    }
+    hub.remove(client);
+    assert.deepEqual(hub.stats(), { rooms: 0, clients: 0 });
+});
 //# sourceMappingURL=hub.test.js.map

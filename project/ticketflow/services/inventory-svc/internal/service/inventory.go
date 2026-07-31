@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/domain"
+	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/notify"
 )
 
 const (
@@ -47,11 +48,18 @@ type SeatLocker interface {
 	Release(ctx context.Context, eventID string, seatIDs []string, owner string) error
 }
 
+// Notifier announces seat changes to the realtime gateway. Optional: without
+// it browsers fall back to polling, which is slower but not wrong.
+type Notifier interface {
+	PublishStatus(ctx context.Context, eventID string, seatIDs []string, status notify.SeatStatus, holdExpiresAt string)
+}
+
 // Inventory serves seat availability and holds.
 type Inventory struct {
-	repo   Repo
-	locker SeatLocker
-	logger *slog.Logger
+	repo     Repo
+	locker   SeatLocker
+	notifier Notifier
+	logger   *slog.Logger
 
 	defaultTTL time.Duration
 	maxTTL     time.Duration
@@ -61,7 +69,10 @@ type Options struct {
 	Repo Repo
 	// Locker is optional. Without it the service is still correct; Postgres
 	// simply absorbs the losing requests too.
-	Locker     SeatLocker
+	Locker SeatLocker
+	// Notifier is optional. Without it seat maps refresh on their poll interval
+	// rather than instantly.
+	Notifier   Notifier
 	Logger     *slog.Logger
 	DefaultTTL time.Duration
 	MaxTTL     time.Duration
@@ -80,6 +91,7 @@ func New(opts Options) *Inventory {
 	return &Inventory{
 		repo:       opts.Repo,
 		locker:     opts.Locker,
+		notifier:   opts.Notifier,
 		logger:     opts.Logger,
 		defaultTTL: opts.DefaultTTL,
 		maxTTL:     opts.MaxTTL,
@@ -174,6 +186,12 @@ func (i *Inventory) HoldSeats(ctx context.Context, req domain.HoldRequest) (doma
 	if result.Replayed {
 		i.logger.InfoContext(ctx, "hold replayed from idempotency key",
 			slog.String("hold_id", result.Hold.ID), slog.String("user_id", req.UserID))
+	} else if i.notifier != nil && len(result.Hold.SeatIDs) > 0 {
+		// Announce only a genuinely new hold. A replay changed nothing, so
+		// publishing would burn a sequence number and make every browser
+		// re-render for no reason.
+		i.notifier.PublishStatus(ctx, req.EventID, result.Hold.SeatIDs,
+			notify.StatusHeld, result.Hold.ExpiresAt.UTC().Format(time.RFC3339))
 	}
 	return result, nil
 }

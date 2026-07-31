@@ -26,6 +26,7 @@ import (
 	inventory "github.com/abhiraj860/ticketflow/services/inventory-svc"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/grpcserver"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/lock"
+	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/notify"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/repo"
 	"github.com/abhiraj860/ticketflow/services/inventory-svc/internal/service"
 )
@@ -86,7 +87,11 @@ func run() error {
 	// Optional by design: if Redis is unreachable the service is still correct,
 	// Postgres simply absorbs the losing requests too. Refusing to boot over an
 	// optimisation would be the wrong trade.
-	var locker service.SeatLocker
+	var (
+		locker       service.SeatLocker
+		notifier     service.Notifier
+		notifyClient *redis.Client
+	)
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:         cfg.redisAddr,
 		DB:           cfg.redisDB,
@@ -102,11 +107,26 @@ func run() error {
 		defer func() { _ = redisClient.Close() }()
 		locker = lock.NewSeatLocker(redisClient)
 		logger.Info("seat lock fast path enabled", slog.String("addr", cfg.redisAddr))
+
+		// Seat updates go on DB 0 alongside pub/sub, not the lock database:
+		// pub/sub is not scoped to a logical database in Redis, but keeping the
+		// sequence counters with the cache keeps lock storage single-purpose.
+		notifyClient = redis.NewClient(&redis.Options{
+			Addr: cfg.redisAddr, DB: cfg.notifyRedisDB,
+			DialTimeout: 2 * time.Second, ReadTimeout: 200 * time.Millisecond,
+		})
+		notifier = notify.New(notifyClient, logger)
+		logger.Info("realtime seat updates enabled")
+	}
+
+	if notifyClient != nil {
+		defer func() { _ = notifyClient.Close() }()
 	}
 
 	svc := service.New(service.Options{
 		Repo:       repo.NewSeatRepo(pool),
 		Locker:     locker,
+		Notifier:   notifier,
 		Logger:     logger,
 		DefaultTTL: cfg.holdTTL,
 		MaxTTL:     cfg.maxHoldTTL,
@@ -196,6 +216,7 @@ type appConfig struct {
 	dbMaxConns      int
 	redisAddr       string
 	redisDB         int
+	notifyRedisDB   int
 	holdTTL         time.Duration
 	maxHoldTTL      time.Duration
 	reaperInterval  time.Duration
@@ -215,6 +236,7 @@ func loadConfig() (appConfig, error) {
 		dbMaxConns:      l.Int("DB_MAX_CONNS", 20),
 		redisAddr:       l.String("REDIS_ADDR", "localhost:6379"),
 		redisDB:         l.Int("REDIS_DB", 1),
+		notifyRedisDB:   l.Int("NOTIFY_REDIS_DB", 0),
 		holdTTL:         l.Duration("HOLD_TTL", 2*time.Minute),
 		maxHoldTTL:      l.Duration("MAX_HOLD_TTL", 10*time.Minute),
 		reaperInterval:  l.Duration("REAPER_INTERVAL", 10*time.Second),

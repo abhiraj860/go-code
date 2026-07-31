@@ -10,7 +10,18 @@ export class Hub {
     rooms = new Map();
     /** Reverse index, so disconnecting is O(rooms joined) not O(all rooms). */
     membership = new Map();
-    /** Last sequence forwarded per event, for dropping stale frames centrally. */
+    /**
+     * Last sequence forwarded per SEAT, not per event.
+     *
+     * Per-event was a bug. The publisher assigns one sequence to every seat in a
+     * hold, because they change at the same logical moment -- so with per-event
+     * tracking the first seat set the watermark and every other seat in the same
+     * hold was discarded as stale. A two-seat hold delivered one update.
+     *
+     * Per-seat is the correct granularity anyway: the guard exists to stop an
+     * older state for a GIVEN SEAT overwriting a newer one, which says nothing
+     * about seats that happen to share an event.
+     */
     lastSequence = new Map();
     subscribe(client, eventId) {
         let room = this.rooms.get(eventId);
@@ -34,7 +45,7 @@ export class Hub {
             // it has ever seen — a slow leak that only shows up after weeks.
             if (room.size === 0) {
                 this.rooms.delete(eventId);
-                this.lastSequence.delete(eventId);
+                this.forgetSequences(eventId);
             }
         }
         this.membership.get(client)?.delete(eventId);
@@ -49,7 +60,7 @@ export class Hub {
             room?.delete(client);
             if (room && room.size === 0) {
                 this.rooms.delete(eventId);
-                this.lastSequence.delete(eventId);
+                this.forgetSequences(eventId);
             }
         }
         this.membership.delete(client);
@@ -63,11 +74,12 @@ export class Hub {
      * and it means a buggy client cannot render a stale seat state.
      */
     broadcast(update) {
-        const last = this.lastSequence.get(update.eventId);
+        const seatKey = `${update.eventId}:${update.seatId}`;
+        const last = this.lastSequence.get(seatKey);
         if (last !== undefined && update.sequence <= last) {
             return 0;
         }
-        this.lastSequence.set(update.eventId, update.sequence);
+        this.lastSequence.set(seatKey, update.sequence);
         const room = this.rooms.get(update.eventId);
         if (!room || room.size === 0)
             return 0;
@@ -85,6 +97,18 @@ export class Hub {
             }
         }
         return delivered;
+    }
+    /**
+     * Drops every per-seat watermark for an event once nobody is watching it.
+     * Without this a long-lived gateway keeps one entry per seat it has ever
+     * seen -- an arena is 20k seats, so the leak is real rather than theoretical.
+     */
+    forgetSequences(eventId) {
+        const prefix = `${eventId}:`;
+        for (const key of this.lastSequence.keys()) {
+            if (key.startsWith(prefix))
+                this.lastSequence.delete(key);
+        }
     }
     /** Rooms currently being watched, so the server subscribes to only those. */
     activeEvents() {

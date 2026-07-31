@@ -33,7 +33,18 @@ export declare class Hub {
     private readonly rooms;
     /** Reverse index, so disconnecting is O(rooms joined) not O(all rooms). */
     private readonly membership;
-    /** Last sequence forwarded per event, for dropping stale frames centrally. */
+    /**
+     * Last sequence forwarded per SEAT, not per event.
+     *
+     * Per-event was a bug. The publisher assigns one sequence to every seat in a
+     * hold, because they change at the same logical moment -- so with per-event
+     * tracking the first seat set the watermark and every other seat in the same
+     * hold was discarded as stale. A two-seat hold delivered one update.
+     *
+     * Per-seat is the correct granularity anyway: the guard exists to stop an
+     * older state for a GIVEN SEAT overwriting a newer one, which says nothing
+     * about seats that happen to share an event.
+     */
     private readonly lastSequence;
     subscribe(client: Client, eventId: string): void;
     unsubscribe(client: Client, eventId: string): void;
@@ -48,6 +59,12 @@ export declare class Hub {
      * and it means a buggy client cannot render a stale seat state.
      */
     broadcast(update: SeatUpdate): number;
+    /**
+     * Drops every per-seat watermark for an event once nobody is watching it.
+     * Without this a long-lived gateway keeps one entry per seat it has ever
+     * seen -- an arena is 20k seats, so the leak is real rather than theoretical.
+     */
+    private forgetSequences;
     /** Rooms currently being watched, so the server subscribes to only those. */
     activeEvents(): string[];
     stats(): {

@@ -109,9 +109,16 @@ build: ## Compile every module in the workspace
 	cd proto && go build ./...
 
 .PHONY: test
-test: ## Run unit tests across the workspace
+test: ## Run Go unit tests across the workspace
 	go test ./... $(TESTFLAGS)
 	cd pkg && go test ./... $(TESTFLAGS)
+
+.PHONY: test-node
+test-node: ## Typecheck and test the Node packages
+	cd node/realtime-gateway && npm run typecheck && npm run build && node --test dist/hub.test.js
+
+.PHONY: test-all
+test-all: test test-node ## Everything CI runs, minus the web build
 
 .PHONY: lint
 lint: ## Run go vet and golangci-lint

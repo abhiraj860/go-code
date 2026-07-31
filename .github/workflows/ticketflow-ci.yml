@@ -179,6 +179,45 @@ jobs:
             exit 1
           fi
 
+  node:
+    name: node (typecheck, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: project/ticketflow/node
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The realtime gateway carries the seat-update routing logic, including
+      # the per-seat sequence guard whose absence silently dropped every seat
+      # but one from a multi-seat hold. It needs to be tested here, not just
+      # locally.
+      - name: realtime-gateway
+        working-directory: project/ticketflow/node/realtime-gateway
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+          node --test dist/hub.test.js
+
+      # The web build is the only thing that proves the rendering strategies
+      # are what the comments claim: an event page that says ISR but renders
+      # dynamically shows up here and nowhere else.
+      - name: web
+        working-directory: project/ticketflow/node/web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build
+        env:
+          # No BFF in CI. The pages are written to degrade to an empty list
+          # rather than failing the build, which this exercises.
+          BFF_URL: http://localhost:9999
+
   lint:
     name: golangci-lint
     runs-on: ubuntu-latest
