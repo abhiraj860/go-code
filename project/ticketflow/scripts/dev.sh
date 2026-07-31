@@ -25,6 +25,7 @@ GO_SERVICES=(
   "ticket-svc:./services/ticket-svc/cmd/ticket-svc"
   "search-svc:./services/search-svc/cmd/search-svc"
   "gateway-bff:./services/gateway-bff/cmd/gateway-bff"
+  "notification-svc:./services/notification-svc/cmd/notification-svc"
 )
 
 log()  { printf '\033[36m>>\033[0m %s\n' "$*"; }
@@ -126,6 +127,7 @@ start() {
   wait_healthy ticket-svc       9122 || failed=1
   wait_healthy search-svc       9132 || failed=1
   wait_healthy gateway-bff      8080 || failed=1
+  wait_healthy notification-svc 9162 || failed=1
   wait_healthy realtime-gateway 9150 || failed=1
   # The storefront has no /healthz; a 200 on the home page is the check.
   if curl -sf --max-time 10 http://localhost:3000/ >/dev/null 2>&1; then
