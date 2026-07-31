@@ -100,6 +100,32 @@ topics: ## Create Kafka topics (auto-create is disabled on purpose)
 			&& echo ">> topic $$t ready" || echo "!! topic $$t failed"; \
 	done
 
+##@ Run it
+
+.PHONY: run
+run: ## Build and start every service (needs `make up-all` first)
+	@./scripts/dev.sh start
+
+.PHONY: stop
+stop: ## Stop every service
+	@./scripts/dev.sh stop
+
+.PHONY: seed
+seed: ## Load demo events, seats and search index
+	@./scripts/dev.sh seed
+
+.PHONY: reset
+reset: ## Release every seat and delete orders (keeps the catalogue)
+	@./scripts/dev.sh reset
+
+.PHONY: status
+status: ## Show what is running
+	@./scripts/dev.sh status
+
+.PHONY: demo
+demo: ## Scripted end-to-end walkthrough
+	@./scripts/demo.sh
+
 ##@ Build & test
 
 .PHONY: build

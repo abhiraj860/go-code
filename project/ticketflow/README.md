@@ -11,18 +11,49 @@ That constraint is what forces ACID inventory, distributed locks, cache-stampede
 idempotency at the edge, asynchronous fan-out and blue/green deploys. Nothing here is included
 because it looked good on a list.
 
-## Quick start
+## Try it
+
+Four commands from a clean checkout to a working storefront:
 
 ```bash
-make tools     # install pinned buf, protoc plugins, golangci-lint
-make up        # start Postgres, Redis, Kafka, ElasticSearch, Mongo, LocalStack
-make proto     # generate Go code from .proto
-make test      # run the test suite
-make help      # every available target
+make tools     # pinned buf, protoc plugins, linter (once)
+make up-all    # every dependency: Postgres, Redis, Kafka, Mongo, ElasticSearch, LocalStack
+make run       # build and start all 8 services
+make seed      # demo events, 240 seats, search index
 ```
 
-`make up` waits for health checks and creates the Kafka topics, so a green `make up` means the
-stack is genuinely ready — not just that containers were created.
+Then open **http://localhost:3000**, click an event, and pick seats.
+Open the same event in two tabs — holding a seat in one greys it out in the other, live.
+
+```bash
+make demo      # scripted 10-step walkthrough of the whole system
+make status    # what is actually answering on each port
+make reset     # release every seat, delete orders, keep the catalogue
+make stop      # stop everything
+```
+
+`make demo` drives the real services over their real APIs — nothing stubbed, nothing published
+by hand — and covers browse, the parallel fan-out, a contended hold, idempotent retry, the
+transactional outbox, payment, ticket PDFs landing in S3, and typo-tolerant search.
+
+| | |
+|---|---|
+| storefront | http://localhost:3000 |
+| REST API | http://localhost:8080/v1/events |
+| search | http://localhost:9132/v1/search?q=coldplay |
+| logs | `.run/logs/` |
+
+The first `make up-all` downloads ~3.7GB of images. `make up` alone starts only the core four,
+which is enough for everything except search and the AWS layer.
+
+### Development
+
+```bash
+make proto     # regenerate Go from .proto
+make test      # Go tests
+make test-all  # Go + Node, what CI runs
+make help      # every target
+```
 
 ## Architecture
 
