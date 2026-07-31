@@ -406,6 +406,23 @@ func summarise(resp *inventoryv1.GetAvailabilityResponse) *availabilitySummary {
 // inventory means "those seats are gone", which is 409 Conflict to a browser,
 // not 429 Too Many Requests.
 func (a *API) writeGRPCError(c *gin.Context, err error) {
+	// Context errors are checked before the status lookup because they do not
+	// always arrive wrapped in one. grpc-go converts a deadline it observes
+	// itself, but an error raised before the call left this process -- our own
+	// context expiring while goroutines queue in the fan-out -- is a bare
+	// context.DeadlineExceeded. Without this branch that becomes a misleading
+	// 502 "upstream unavailable" when no upstream was ever contacted.
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		c.JSON(http.StatusGatewayTimeout, gin.H{"error": "upstream timed out"})
+		return
+	case errors.Is(err, context.Canceled):
+		// The client hung up. 499 is nginx's non-standard code for this; it is
+		// logged rather than returned, since nobody is listening.
+		c.JSON(http.StatusGatewayTimeout, gin.H{"error": "request cancelled"})
+		return
+	}
+
 	st, ok := status.FromError(err)
 	if !ok {
 		a.logger.ErrorContext(c.Request.Context(), "non-grpc upstream error", slog.Any("error", err))
