@@ -85,7 +85,7 @@ func TestRelayDeliversOrderCreatedToKafka(t *testing.T) {
 	}
 	_ = conn.Close()
 
-	placed, err := r.PlaceOrder(ctx, domain.PlaceOrderRequest{
+	placed, _, err := r.PlaceOrder(ctx, domain.PlaceOrderRequest{
 		UserID: "u1", EventID: "evt-1", HoldID: uuid.NewString(),
 		SeatIDs: []string{"S-1"}, TotalMinor: 150000, CurrencyCode: "INR",
 		IdempotencyKey: uuid.NewString(),

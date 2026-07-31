@@ -42,22 +42,25 @@ func NewOrderRepo(pool *pgxpool.Pool) *OrderRepo {
 // Writing the message to a table makes it atomic with the order: both land or
 // neither does. A relay then delivers it. The cost is at-least-once semantics,
 // which is why every consumer must be idempotent.
-func (r *OrderRepo) PlaceOrder(ctx context.Context, req domain.PlaceOrderRequest) (domain.Order, error) {
+// Returns replayed=true when an idempotency key matched an existing order, so
+// callers can distinguish "created" from "already existed" without inspecting
+// timestamps.
+func (r *OrderRepo) PlaceOrder(ctx context.Context, req domain.PlaceOrderRequest) (order domain.Order, replayed bool, err error) {
 	// Idempotency pre-check outside the transaction, so the common replay path
 	// costs one indexed lookup rather than a transaction plus rollback.
 	if existing, err := r.findByIdempotencyKey(ctx, req.UserID, req.IdempotencyKey); err == nil {
-		return existing, nil
+		return existing, true, nil
 	} else if !errors.Is(err, domain.ErrNotFound) {
-		return domain.Order{}, err
+		return domain.Order{}, false, err
 	}
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return domain.Order{}, fmt.Errorf("order: beginning transaction: %w", err)
+		return domain.Order{}, false, fmt.Errorf("order: beginning transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	order := domain.Order{
+	order = domain.Order{
 		ID:             "ord_" + uuid.NewString(),
 		UserID:         req.UserID,
 		EventID:        req.EventID,
@@ -89,26 +92,27 @@ func (r *OrderRepo) PlaceOrder(ctx context.Context, req domain.PlaceOrderRequest
 			case "customer_order_idempotency_uniq":
 				// A concurrent retry of the same request won. Return its order.
 				_ = tx.Rollback(ctx)
-				return r.findByIdempotencyKey(ctx, req.UserID, req.IdempotencyKey)
+				existing, findErr := r.findByIdempotencyKey(ctx, req.UserID, req.IdempotencyKey)
+				return existing, true, findErr
 			case "customer_order_hold_uniq":
 				// Someone already checked out this hold. Not a retry -- a
 				// genuine conflict the caller must be told about.
-				return domain.Order{}, domain.ErrHoldAlreadyOrdered
+				return domain.Order{}, false, domain.ErrHoldAlreadyOrdered
 			}
 		}
-		return domain.Order{}, fmt.Errorf("order: inserting order: %w", err)
+		return domain.Order{}, false, fmt.Errorf("order: inserting order: %w", err)
 	}
 
 	// The message, in the same transaction. If this fails, the order rolls back
 	// too -- which is exactly the guarantee we want.
 	if err := insertOutbox(ctx, tx, order); err != nil {
-		return domain.Order{}, err
+		return domain.Order{}, false, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return domain.Order{}, fmt.Errorf("order: committing: %w", err)
+		return domain.Order{}, false, fmt.Errorf("order: committing: %w", err)
 	}
-	return order, nil
+	return order, false, nil
 }
 
 // insertOutbox writes the order.created message.

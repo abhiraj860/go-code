@@ -114,8 +114,8 @@ contracts without pulling in service code.
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Foundations: workspace, compose stack, buf codegen, CI | ✅ done |
-| 1 | catalog-svc, inventory-svc, gateway-bff, L1+L2 cache | next |
-| 2 | Transactional outbox, Kafka, ticket-svc, search-svc | |
+| 1 | catalog-svc, inventory-svc, gateway-bff, L1+L2 cache | ✅ done |
+| 2 | Transactional outbox, Kafka, ticket-svc, search-svc | ✅ done |
 | 3 | Next.js storefront, realtime WebSocket gateway | |
 | 4 | AWS on LocalStack: Lambda, API GW, DynamoDB, SQS/SNS | |
 | 5 | Docker, Kubernetes, blue/green | |

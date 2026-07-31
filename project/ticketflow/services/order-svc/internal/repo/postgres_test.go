@@ -85,7 +85,7 @@ func TestOrderAndOutboxAreWrittenAtomically(t *testing.T) {
 	r := newTestRepo(t)
 	ctx := context.Background()
 
-	o, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString()))
+	o, _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString()))
 	if err != nil {
 		t.Fatalf("PlaceOrder: %v", err)
 	}
@@ -145,14 +145,14 @@ func TestFailedOrderLeavesNoOutboxRow(t *testing.T) {
 	ctx := context.Background()
 
 	hold := uuid.NewString()
-	if _, err := r.PlaceOrder(ctx, placeReq("u1", hold)); err != nil {
+	if _, _, err := r.PlaceOrder(ctx, placeReq("u1", hold)); err != nil {
 		t.Fatalf("first order: %v", err)
 	}
 
 	// A different user checking out the SAME hold violates the hold unique
 	// index, so the whole transaction rolls back.
 	req := placeReq("u2", hold)
-	if _, err := r.PlaceOrder(ctx, req); !errors.Is(err, domain.ErrHoldAlreadyOrdered) {
+	if _, _, err := r.PlaceOrder(ctx, req); !errors.Is(err, domain.ErrHoldAlreadyOrdered) {
 		t.Fatalf("err = %v, want ErrHoldAlreadyOrdered", err)
 	}
 
@@ -167,17 +167,23 @@ func TestIdempotentReplayReturnsSameOrder(t *testing.T) {
 	ctx := context.Background()
 	req := placeReq("u1", uuid.NewString())
 
-	first, err := r.PlaceOrder(ctx, req)
+	first, firstReplayed, err := r.PlaceOrder(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := r.PlaceOrder(ctx, req)
+	second, secondReplayed, err := r.PlaceOrder(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if first.ID != second.ID {
 		t.Errorf("retry produced order %q, want %q", second.ID, first.ID)
+	}
+	if firstReplayed {
+		t.Error("the first call reported replayed")
+	}
+	if !secondReplayed {
+		t.Error("the retry did not report replayed")
 	}
 	// Crucially, the retry must NOT enqueue a second message, or the buyer
 	// would receive two sets of tickets.
@@ -202,7 +208,7 @@ func TestConcurrentIdempotentRetriesProduceOneOrder(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			o, err := r.PlaceOrder(ctx, req)
+			o, _, err := r.PlaceOrder(ctx, req)
 			ids[i], errs[i] = o.ID, err
 		}(i)
 	}
@@ -231,7 +237,7 @@ func TestConcurrentClaimsAreDisjoint(t *testing.T) {
 	ctx := context.Background()
 
 	for i := range 10 {
-		if _, err := r.PlaceOrder(ctx, placeReq(fmt.Sprintf("u%d", i), uuid.NewString())); err != nil {
+		if _, _, err := r.PlaceOrder(ctx, placeReq(fmt.Sprintf("u%d", i), uuid.NewString())); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -267,7 +273,7 @@ func TestMarkPublishedRemovesFromBacklog(t *testing.T) {
 	r := newTestRepo(t)
 	ctx := context.Background()
 
-	if _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString())); err != nil {
+	if _, _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -300,7 +306,7 @@ func TestCrashBetweenPublishAndMarkRedelivers(t *testing.T) {
 	r := newTestRepo(t)
 	ctx := context.Background()
 
-	if _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString())); err != nil {
+	if _, _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -349,7 +355,7 @@ func TestRecordFailureIncrementsAttempts(t *testing.T) {
 	r := newTestRepo(t)
 	ctx := context.Background()
 
-	if _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString())); err != nil {
+	if _, _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -375,7 +381,7 @@ func TestMarkPaid(t *testing.T) {
 	r := newTestRepo(t)
 	ctx := context.Background()
 
-	o, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString()))
+	o, _, err := r.PlaceOrder(ctx, placeReq("u1", uuid.NewString()))
 	if err != nil {
 		t.Fatal(err)
 	}
