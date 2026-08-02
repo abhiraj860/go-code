@@ -1,0 +1,5 @@
+{"id":1,"service":"api","level":"info","message":"request received"}
+{"id":2,"service":"api","level":"error","message":"database timeout"}
+{"id":3,"service":"worker","level":"info","message":"job started"}
+{"id":4,"service":"worker","level":"error","message":"job failed"}
+{"id":5,"service":"api","level":"warn","message":"slow response"}
