@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package shop;
+
+option go_package = "./shoppb;shoppb";
+
+// ---- PROTOBUF PART: the data shapes ----
+// These are identical to the previous example. Just data.
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message Order {
+  string order_id = 1;
+  string customer = 2;
+  double total    = 3;
+}
+
+message CreateOrderRequest {
+  string customer = 1;
+  double total    = 2;
+}
+
+message WatchRequest {
+  string customer = 1;
+}
+
+// ---- GRPC PART: the callable functions ----
+// This block is what makes it gRPC. Protobuf alone has no
+// concept of a service or a method.
+
+service OrderService {
+  // A plain request/response call — like a normal function.
+  rpc GetOrder(GetOrderRequest) returns (Order);
+
+  rpc CreateOrder(CreateOrderRequest) returns (Order);
+
+  // "stream" on the RETURN means the server sends many messages
+  // over one open connection. HTTP/JSON can't do this without
+  // websockets or long-polling.
+  rpc WatchOrders(WatchRequest) returns (stream Order);
+}
