@@ -1,0 +1,39 @@
+// Which version of the protobuf language this file uses.
+// proto3 is the current one — always use it for new files.
+syntax = "proto3";
+
+// A namespace, so two teams can both have an "Order" without clashing.
+package shop;
+
+// Where the generated Go code goes and what package name it gets.
+// The part after ; is the Go package name.
+option go_package = "./shoppb;shoppb";
+
+// A message is one record — like a struct.
+message Order {
+  // Each field has a TYPE, a NAME, and a NUMBER.
+  // The number is the important part: it's what actually gets
+  // written into the encoded bytes. The name is never sent.
+  string order_id  = 1;
+  string customer  = 2;
+  double total     = 3;
+
+  // repeated means "a list of these".
+  repeated Item items = 4;
+
+  // enum is a fixed set of allowed values.
+  Status status = 5;
+}
+
+message Item {
+  string sku      = 1;
+  int32  quantity = 2;
+}
+
+enum Status {
+  // proto3 requires the first enum value to be 0, and it's the
+  // default when the field isn't set.
+  STATUS_UNKNOWN = 0;
+  STATUS_PENDING = 1;
+  STATUS_SHIPPED = 2;
+}
