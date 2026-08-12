@@ -65,5 +65,4 @@ func main() {
 		}
 	}
 
-	log.Println("stopped")
 }
