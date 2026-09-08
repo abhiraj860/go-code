@@ -1,14 +1,9 @@
-n = 1
-if n > 2:
-    n -= 1
-elif n == 2:
-    n *= 2
-else:
-    n += 2
+# for i in range(4):
+#     print(i)
     
-n, m = 5, 2
-if ((n > 2 and n != m) or n == m):
-    n += 1
     
-print(n)
-
+# for i in range(2, 6):
+#     print(i)
+    
+for i in range(5, 1, -1):
+    print(i)
