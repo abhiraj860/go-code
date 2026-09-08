@@ -1,10 +1,15 @@
-import math
-print(math.fmod(-10, 3))
-print(math.floor(3 / 2))
-print(math.ceil(3/2))
-print(math.sqrt(2))
-print(math.pow(2, 3))
-print(float("inf") > 10)
-print(float("-inf") > 10)
-print(math.pow(2, 200))
-print(math.pow(2, 200) < float("inf"))
+arr = [1, 2, 3]
+print(arr)
+
+arr.append(4)
+arr.append(5)
+print(arr)
+
+arr.pop()
+print(arr)
+
+arr.insert(1, 7)
+print(arr)
+
+# arr.sort(reverse=True)
+print(sorted(arr))
