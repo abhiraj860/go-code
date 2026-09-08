@@ -16,3 +16,8 @@ n += 1
 print(n)
 n += 1
 print(n)
+
+n = 4
+print(n)
+n = None
+print("n=", n)
