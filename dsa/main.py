@@ -1,8 +1,14 @@
-tup = (1, 2, 3)
-print(tup)
+def isValid(s):
+    stack = []
+    mapping = {")" : "(", "}" : "{", "]" : "["}
+    for char in s:
+        if char in mapping:
+            if not stack or stack[-1] != mapping[char]:
+                return False
+            stack.pop()
+        else:
+            stack.append(char)
+    return True
 
-print(tup[0])
-print(tup[1])
-print(tup[-1])
 
-print(tup[len(tup) - 1])
+print(isValid("(){({}})"))
