@@ -1,17 +1,21 @@
-mySet = set()
-mySet.add(1)
-mySet.add(2)
-mySet.add(3)
-
-print(mySet)
-print(len(mySet))
-print(1 in mySet)
-print(2 in mySet)
-print(4 in mySet)
-
-mySet.remove(2)
-print(2 in mySet)
-
-print(set([1, 2, 3, 4, 4, 4]))
-mySet = {i for i in range(7)}
-print(mySet)
+myMap = {}
+myMap["alice"] = 88
+myMap["bob"] = 77
+print(myMap)
+print(len(myMap))
+myMap["alice"] = 80
+print(myMap)
+print("alice" in myMap)
+myMap = {i : 2 * i for i in range(3)}
+print(myMap)
+myMap = {"alice": 90, "bob": 70}
+for key in myMap:
+    print(key, myMap[key])
+for val in myMap.values():
+    print(val)
+for key, val in myMap.items():
+    print(key, val)
+    
+a = [1, 2, 4]
+for i, v in enumerate(myMap):
+    print(i, v)
