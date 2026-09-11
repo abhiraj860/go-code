@@ -1,22 +1,14 @@
-import heapq
+tup = (1, 2, 3)
+# print(tup)
+# print(tup[0])
+# print(tup[1])
+# print(tup[2])
 
-minHeap = []
-heapq.heappush(minHeap, 3)
-heapq.heappush(minHeap, 2)
-heapq.heappush(minHeap, 4)
-# print(minHeap[0])
+myMap = {(1, 2): 3, (1, 2): 6}
+print(myMap[(1, 2)])
 
-maxHeap = []
-heapq.heappush(maxHeap, -3)
-heapq.heappush(maxHeap, -2)
-heapq.heappush(maxHeap, -4)
-
-# while len(maxHeap):
-#     print(heapq.heappop(maxHeap) * -1)
-
-arr = [2, 1, 8, 4, 5]
-arr = [-x for x in arr]    
-
-heapq.heapify(arr)
-while arr:
-    print(-1 * heapq.heappop(arr))
+mySet = set()
+mySet.add(1)
+mySet.add(0)
+print(mySet)
+print((1, 2) in mySet)
