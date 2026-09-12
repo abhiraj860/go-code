@@ -1,6 +1,11 @@
-def fact(n):
-    if n == 1 or n == 0:
-        return 1
-    return n * fact(n - 1)
+def fibo(n):
+    if n <= 1:
+        return n
+    return fibo(n - 1) + fibo(n - 2)
 
-print(fact(5))
+# print(fibo(6))
+
+lst = [0, 1]
+for k in range(2, 10):
+    lst.append(lst[-1] + lst[-2])
+print(lst)
