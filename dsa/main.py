@@ -1,11 +1,19 @@
-def fibo(n):
-    if n <= 1:
-        return n
-    return fibo(n - 1) + fibo(n - 2)
+def search(nums, target):
+    low, high = 0, len(nums) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[low] <= nums[mid]:
+            if nums[low] <= target and nums[mid] > target:
+                high = mid - 1
+            else:
+                low = mid + 1
+        if nums[mid] <= nums[high]:
+            if nums[mid] < target and target <= nums[high]:
+                low = mid + 1
+            else:
+                high = mid - 1
+    return -1
 
-# print(fibo(6))
-
-lst = [0, 1]
-for k in range(2, 10):
-    lst.append(lst[-1] + lst[-2])
-print(lst)
+print(search([8, 9, 10, 12, 16, 17, 1, 2, 3], 3))        
