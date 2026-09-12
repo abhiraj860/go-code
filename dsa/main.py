@@ -1,5 +1,8 @@
-name = "Abhiraj"
-country = "India"
-money = 45.4545454
-print(f"Hey {{name}} and from {{money:.4f}} country {{country}}")
-print(type(f"{2 * 60}"))
+def square(n):
+    
+    '''Heloo this is is '''
+    
+    
+    print(n**2)
+square(5)
+print(square.__doc__)
