@@ -1,7 +1,5 @@
-tup1 = (1, 2, 3)
-tup2 = (4, 5, 6, 8, 9, 9, 9)
-tot = tup1 + tup2
-print(tot.count(2))
-# print(tot.index(9, 0, len(tot)))
-print(tot.index(6, 0, -1))
-# print(tot)
+name = "Abhiraj"
+country = "India"
+money = 45.4545454
+print(f"Hey {{name}} and from {{money:.4f}} country {{country}}")
+print(type(f"{2 * 60}"))
