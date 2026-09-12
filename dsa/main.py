@@ -1,25 +1,24 @@
-import math
-apples = [3, 6, 7]
-h = 8
+marks = [3, 5, 6, "Abhira", True, 34, 34, 34, 12, 23,14, 56]
+# print(marks)
+# print(type(marks))
+# print(marks[0])
+# print(marks[1])
+# print(marks[2])
+# print(marks[3])
+# print(marks[4])
+# print(marks[5-3])
+# print(marks[-3])
+# if "6" in marks:
+#     print("Yes")
+# else:
+#     print("No")
 
-def minRate(apples, h):
-   
-    def possible(mid, apples, h):
-        total = 0
-        for app in apples:
-            total += (app + mid - 1) // mid
-        return total <= h
-    
-    low, high = 1, max(apples)
-    ans = -1
-    while low <= high:
-        mid = (low + high) // 2
-        if possible(mid, apples, h):
-            high = mid - 1
-            ans = mid
-        else:
-            low = mid + 1
-    return ans
+# if "Ha" in "Harry":
+#     print("Yes")
 
+# print(marks[:7])
+# print(marks[1:len(marks) + 10:3])
 
-print(minRate( [30,11,23,4,20], 6))
+lst = [i * i for i in range(11) if i % 2 == 0]
+lst = [i * i for i in range(10) for k in range(3)]
+print(lst)
