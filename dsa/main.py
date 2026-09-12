@@ -1,16 +1,17 @@
-lst = [11, 11, 11, 23, 4, 6]
-print(lst)
-# lst.append(7)
-# lst.sort(reverse=True)
-# lst.reverse()
-# m = lst.copy()
-# m[0] = 0
-# print(m)
-# print(lst)
-# lst.insert(1, 899)
-# print(lst)
-m = [900,5000, 1000, 1100]
-# lst.extend(m)
-# print(lst, m)
-k = lst + m
-print(k)
+tup = (1, 2, 3, "green", True)
+# tup[0] = 40
+print(type(tup), tup)
+# print(tup[0])
+# print(tup[1])
+print(tup[-1])
+
+
+
+if 3 in tup:
+    print("yes prensent in tup")
+else:
+    print("Not present")
+    
+tup2 = tup[1:4:2]
+print(tup2)
+print(tup2[1:])
