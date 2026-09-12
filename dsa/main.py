@@ -1,21 +1,12 @@
-myMap = {}
-myMap["alice"] = 88
-myMap["bob"] = 77
-print(myMap)
-print(len(myMap))
-myMap["alice"] = 80
-print(myMap)
-print("alice" in myMap)
-myMap = {i : 2 * i for i in range(3)}
-print(myMap)
-myMap = {"alice": 90, "bob": 70}
-for key in myMap:
-    print(key, myMap[key])
-for val in myMap.values():
-    print(val)
-for key, val in myMap.items():
-    print(key, val)
+class MyClass:
+    def __init__(self, nums):
+        self.nums = nums
+        self.size = len(nums)
+    def getLength(self):
+        return self.size
+    def getDoubleLength(self):
+        return 2 * self.size
     
-a = [1, 2, 4]
-for i, v in enumerate(myMap):
-    print(i, v)
+myObj = MyClass({1, 2, 3, 3, 3, 3})
+print(myObj.getLength())
+print(myObj.getDoubleLength())
