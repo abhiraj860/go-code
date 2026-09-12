@@ -3,8 +3,14 @@ apples = [3, 6, 7]
 h = 8
 
 def minRate(apples, h):
-    low = 1
-    high = max(apples)
+   
+    def possible(mid, apples, h):
+        total = 0
+        for app in apples:
+            total += (app + mid - 1) // mid
+        return total <= h
+    
+    low, high = 1, max(apples)
     ans = -1
     while low <= high:
         mid = (low + high) // 2
@@ -15,10 +21,5 @@ def minRate(apples, h):
             low = mid + 1
     return ans
 
-def possible(mid, apples, h):
-    total = 0
-    for app in apples:
-        total += math.ceil(app / mid)
-    return total <= h
 
 print(minRate( [30,11,23,4,20], 6))
