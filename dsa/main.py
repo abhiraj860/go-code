@@ -1,14 +1,14 @@
-s = "abc"
-print(s[0:2])
+def bs(nums, target):
+    start = 0
+    end = len(nums) - 1
+    while start <= end:
+        mid = (start + end) // 2
+        if nums[mid] == target:
+            return mid
+        elif nums[mid] < target:
+            start = mid + 1
+        else:
+            end = mid - 1
+    return -1
 
-s += "def"
-print(s)
-
-print(int("123") + int("565"))
-print(str(123) + str(123))
-print(ord("a"))
-print(ord("A"))
-
-strings = ["abu", "cd", "eddf"]
-strings.sort(key=lambda x : len(x), reverse = True)
-print(strings)
+print(bs([1, 2, 3, 4], 1))
