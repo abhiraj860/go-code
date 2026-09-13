@@ -1,4 +1,8 @@
-a = int(input("Enter any value between 5 and 9 "))
+import heapq
 
-if a < 5 or a > 9:
-    raise ValueError("Value should be between 5 and 9")
+arr = []
+heapq.heappush(arr, 1)
+heapq.heappush(arr, 2)
+heapq.heappush(arr, -9)
+heapq.heappop(arr)
+print(arr[0])
