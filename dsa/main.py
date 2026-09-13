@@ -6,6 +6,7 @@ def topK(nums):
     for num in nums[3:]:
         heapq.heappop(heap)
         heapq.heappush(heap, num)
+    heap.sort(reverse = True)
     return heap
     
 
