@@ -1,19 +1,20 @@
-def search(nums, target):
-    low, high = 0, len(nums) - 1
-    while low <= high:
-        mid = (low + high) // 2
-        if nums[mid] == target:
-            return mid
-        if nums[low] <= nums[mid]:
-            if nums[low] <= target and nums[mid] > target:
-                high = mid - 1
-            else:
-                low = mid + 1
-        if nums[mid] <= nums[high]:
-            if nums[mid] < target and target <= nums[high]:
-                low = mid + 1
-            else:
-                high = mid - 1
-    return -1
+s1 = {1, 2, 5, 6}
+s2 = {3, 63, 7}
+s3 = [4, 5, 6,5,5656]
+# s = s1 + s2
+# print(s)
+s2.add("SDfsdfs")
+print(s1.isdisjoint(s2))
+s1.update(s2)
+print(s1)
+s1.discard(5545)
 
-print(search([8, 9, 10, 12, 16, 17, 1, 2, 3], 3))        
+
+
+# s = {100, 2, 4, 2, 6}
+# print(s)
+
+# info = {"Carla", 19, False, 5.9, 19}
+# for val in info:
+#     print(val)
+# print(type(info))
