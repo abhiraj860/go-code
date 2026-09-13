@@ -1,11 +1,13 @@
-a = input("Enter a number: ")
-
-try:
-    num = [5, 6]
-    print(num[int(a)])
-except ValueError:
-    print("Input is not an integer")
-except IndexError:
-    print("Index error")
-    
-
+def fn():
+    try:
+        l = [1, 5, 6, 7]
+        i = int(input("Enter the index: "))
+        print(l[i])
+        return 1
+    except:
+        print("Some error occurred")
+        return -1
+    finally:
+        print("I am always executed")
+        
+print(fn())
