@@ -1,7 +1,6 @@
 import heapq
-arr = [3, 1, 4, 1, 5, 9, 2]
-arr = [-x for x in arr]
+arr = [(3, 1), (1, 5), (4, 2), (1, 9), (5, 3), (9, 4), (2, 6)]
 heapq.heapify(arr)
-heapq.heappush(arr, -11)
-print(-1 * arr[0])
-maxElem = -1 * heapq.heappop(arr)
+minEle = heapq.heappop(arr)
+print(minEle)
+heapq.heappush(arr, (1, 7))
