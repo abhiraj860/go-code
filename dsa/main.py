@@ -1,6 +1,13 @@
 import heapq
-arr = [(3, 1), (1, 5), (4, 2), (1, 9), (5, 3), (9, 4), (2, 6)]
-heapq.heapify(arr)
-minEle = heapq.heappop(arr)
-print(minEle)
-heapq.heappush(arr, (1, 7))
+
+def topK(nums):
+    heap = nums[:3]
+    heapq.heapify(heap)
+    for num in nums[3:]:
+        heapq.heappop(heap)
+        heapq.heappush(heap, num)
+    return heap
+    
+
+nums = [9, 3, 7, 1, -2, 6, 8]
+print(topK(nums))
