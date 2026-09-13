@@ -1,20 +1,28 @@
-s1 = {1, 2, 5, 6}
-s2 = {3, 63, 7}
-s3 = [4, 5, 6,5,5656]
-# s = s1 + s2
-# print(s)
-s2.add("SDfsdfs")
-print(s1.isdisjoint(s2))
-s1.update(s2)
-print(s1)
-s1.discard(5545)
+# dic = {
+#     344: "Harry",
+#     56: "Shubham",
+#     678: "zakir",
+#     567: "Neha",
+# }
 
+# print(dic[344])
+# print(dic.get(34))
+# print(dic.keys())
+# print(dic.values())
 
+# for key in dic.keys():
+#     print(f"The value corresponding to the key {key} is {dic[key]}")
+    
+    
+# print(dic.items())
+# for key, val in dic.items():
+#     print(key)
 
-# s = {100, 2, 4, 2, 6}
-# print(s)
+ep = {122: 45, 344:56, 122:90, 5566: 89}
+ep2 = {122:56, 5566:900, "hhhe": "opop"}
 
-# info = {"Carla", 19, False, 5.9, 19}
-# for val in info:
-#     print(val)
-# print(type(info))
+ep.update(ep2)
+print(ep)
+ep.popitem()
+del ep[122]
+print(ep)
