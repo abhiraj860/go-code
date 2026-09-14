@@ -1,14 +1,8 @@
-import heapq
+a = 300000
+b = 330
+print("A") if a > b else print("=") if a == b else print("B")
 
-def topK(nums):
-    heap = nums[:3]
-    heapq.heapify(heap)
-    for num in nums[3:]:
-        heapq.heappop(heap)
-        heapq.heappush(heap, num)
-    heap.sort(reverse = True)
-    return heap
-    
+print("A") if a < b else ""
 
-nums = [9, 3, 7, 1, -2, 6, 8]
-print(topK(nums))
+c = 9 if a > b else 0
+print(c)
