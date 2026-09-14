@@ -1,8 +1,6 @@
-a = 300000
-b = 330
-print("A") if a > b else print("=") if a == b else print("B")
-
-print("A") if a < b else ""
-
-c = 9 if a > b else 0
-print(c)
+marks = [12, 56, 32, 45, 1, 1, 4]
+for indx, val in enumerate(marks):
+    if indx == 3:
+        print("val", val)
+    else:
+        print(val)
