@@ -1,4 +1,6 @@
-
-l = [1, 2, 4, 6, 4, 3]
-x = list(map(lambda x : x**2, l))
-print(list(filter(lambda x : x > 19, x)))
+from functools import reduce
+numbers = [1, 2, 3, 4, 5]
+def mySum(x, y):
+    return x + y 
+sum = reduce(mySum , numbers)
+print(sum)
