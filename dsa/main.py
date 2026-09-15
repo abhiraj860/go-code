@@ -1,2 +1,2 @@
-x, y = [int(x) for x in input("Enter multiple value: ").split(",")]
-print(x, y)
+x = [int(x.strip()) for x in input("Enter numbers: ").split(",")] 
+print(x)
