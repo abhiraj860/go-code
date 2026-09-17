@@ -1,13 +1,21 @@
-class Employee:
-    def __init__(self, name):
-        self.name = name
+class Shape:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
-    def __len__(self):
-        return len(self.name)
+    def area(self):
+        return self.x * self.y
+    
 
-    def __call__(self):
-        print("Hey I am good")
-        
-        
-e = Employee("Hqrry")
-e()
+class Circle(Shape):
+    def __init__(self, radius):
+        self.radius = radius
+        super().__init__(radius, radius) 
+    def area(self):    
+        return 3.14 * super().area()
+
+rec = Shape(3, 5)
+print(rec.area())
+
+c = Circle(5)
+print(c.area())
