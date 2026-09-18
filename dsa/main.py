@@ -1,14 +1,17 @@
-import asyncio
+import threading
+import time
 
-async def slowApi():
-    await asyncio.sleep(1)
-    return "API Success"
+def downloadFile(filename, duration):
+    print(f"[{filename}] Start download...")
+    time.sleep(duration)
+    print(f"[{filename}] Download finished...")
+    
+thread1 = threading.Thread(target=downloadFile, args=("file1.zip", 3))
+thread2 = threading.Thread(target=downloadFile, args=("file2.zip", 1))
 
-async def main():
-    try:
-        result = await asyncio.wait_for(slowApi(), timeout = 2.0)
-        print(result)
-    except asyncio.TimeoutError:
-        print("Reqiestion time out")
-        
-asyncio.run(main())
+thread1.start()
+thread2.start()
+
+thread1.join()
+thread2.join()
+print("All download complete!!!")
