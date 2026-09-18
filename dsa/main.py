@@ -1,20 +1,22 @@
-import threading
+import multiprocessing
+import time
 
-balance = 0
-lock = threading.Lock()
-
-def deposit(amount):
-    global balance
-    for _ in range(100000):
-        with lock:
-            balance += amount
-
-t1 = threading.Thread(target=deposit, args=(1,))
-t2 = threading.Thread(target=deposit, args=(1,))
-
-t1.start()
-t2.start()
-t1.join()
-t2.join()
-
-print(f"final balance {balance}")
+def sumOfSquare(nums):
+    time.sleep(5)
+    total = sum(n * n for n in nums)
+    print(f"The total is {total}")
+    
+if __name__ == "__main__":
+    nums = list(range(10_000_000))
+    m1 = multiprocessing.Process(target=sumOfSquare, args = (nums,))
+    m2 = multiprocessing.Process(target=sumOfSquare, args = (nums,))
+   
+    m1.start()
+    m2.start()
+   
+    print("Completed")
+   
+    m1.join()
+    m2.join()
+    
+    
