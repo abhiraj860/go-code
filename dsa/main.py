@@ -1,68 +1,41 @@
-from typing import Protocol
-from functools import singledispatchmethod
+class EmployeeProfile:
+    def __init__(self, name: str, ssn: str, salary: float):
+        self.name = name
+        self.__ssn = ssn
+        self.__salary = salary
 
-class PaymentMethod(Protocol):
-    def pay(self, amount: float) -> str:
-        pass
-
+    @property
+    def salary(self) -> float:
+        return self.__salary
     
-class CreditCard:
-    def __init__(self, cardNumber: str):
-        self.cardNumber = cardNumber
+    @salary.setter
+    def salary(self, amount: float) -> None:
+        if amount <= 0.0:
+            raise ValueError("Salary must be positive.")
+        self.__salary = amount
     
-    def pay(self, amount: float) -> str:
-        return f"Paid ${amount:.2f} via Credit Card ****{self.cardNumber[-4:]}"
-    
-class CryptoWallet:
-    def __init__(self, walletAddress: str):
-        self.walletAddress = walletAddress
-
-    def pay(self, amount: float) -> str:
-        return f"Paid ${amount:.2f} via Crypto Wallet {self.walletAddress}"
+    @property
+    def masked_ssn(self) -> str:
+        return "XXX-XX-" + self.__ssn[-4:]
     
     
-def process_transaction(method: PaymentMethod, amount: float) -> None:
-    print(method.pay(amount))
-    
-class PayloadProcessor:
-    @singledispatchmethod
-    def parse(self, data):
-        raise NotImplementedError("Unsupported payload format")
-    
-    @parse.register
-    def _(self, data: dict):
-        return f"Parsed JSON Dict: Status {data['status']}"
-    
-    @parse.register
-    def _(self, data: str):
-        return f"Parse Raw String: {data.upper()}"
-   
-   
-   
-   
-  # --- INTERVIEW TEST SUITE ---
 if __name__ == "__main__":
-    # Test 1: Protocols & Duck Typing
-    card = CreditCard("1234567890123456")
-    crypto = CryptoWallet("0xABC123")
+    emp = EmployeeProfile("Sarah Connor", "123-45-6789", 75000.0)
 
-    print("--- Testing Protocol Integration ---")
-    process_transaction(card, 150.0)
-    process_transaction(crypto, 300.0)
+    # Test 1: Property Getters
+    print(f"Employee: {emp.name}")
+    print(f"Masked SSN: {emp.masked_ssn}")
+    print(f"Current Salary: ${emp.salary:.2f}")
 
-    # Test 2: Single-Dispatch Method
-    processor = PayloadProcessor()
+    # Test 2: Valid Salary Update
+    emp.salary = 82000.0
+    print(f"Updated Salary: ${emp.salary:.2f}")
 
-    print("\n--- Testing Single Dispatch Parsing ---")
-    print(processor.parse({"status": "success", "code": 200}))
-    print(processor.parse("txn-101,success"))
-
-    # Test 3: Unsupported Payload Error Handling
+    # Test 3: Invalid Salary Validation Safeguard
     try:
-        processor.parse([1, 2, 3])
-    except NotImplementedError as e:
-        print(f"PASS: Handled unsupported payload cleanly -> {e}") 
-   
-   
-   
-    
+        emp.salary = -5000.0
+    except ValueError as e:
+        print(f"PASS: Caught invalid salary update -> {e}")
+
+    # Test 4: Private Name-Mangling Access Verification
+    print(f"Mangled Salary Access: ${emp._EmployeeProfile__salary:.2f}") 
