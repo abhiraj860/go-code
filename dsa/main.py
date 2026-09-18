@@ -1,18 +1,11 @@
-class Vector:
-    def __init__(self, i, j, k):
-        self.i = i
-        self.j = j
-        self.k = k
-    def __str__(self):
-        return f"{self.i}i + {self.j}j + {self.k}k"
-    
-    def __add__(self, x):
-        return Vector(self.i + x.i,  self.j + x.j,  self.k + x.k)
+import re
 
-v1 = Vector(3, 5, 6)
-print(v1)
+sample = "Order #A-102 cost $45.99 on 2026-09-18"
 
-v2 = Vector(1, 2, 9)
-print(v2)
+numbers = re.findall(r"\d+\.?\d*", sample)
+print(numbers)
 
-print(type(v1 + v2))
+date = re.search(r"\d{4}-\d{2}-\d{2}", sample)
+print(date.group())
+
+
