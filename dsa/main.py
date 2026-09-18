@@ -1,41 +1,80 @@
-class UserSession:
-    active_sessions = 0
-    def __init__(self, username: str, role: str, session_token: str) -> None:
-        self.username = username
-        self.role = role
-        self.session_token = session_token
-        type(self).active_sessions += 1
+from abc import ABC, abstractmethod
+
+class NotificationChannel(ABC):
+    @abstractmethod
+    def send_message(self, email, message):
+        pass
+
+class EmailChannel(NotificationChannel):
+    def send_message(self, email, message):
+        return f"Email sent to {email}: {message}"
         
-    @classmethod
-    def create_guest(cls, username: str) -> "UserSession":
-        return cls(username, "Guest", "GUEST-TEMP")
+class SMSChannel(NotificationChannel):
+    def send_message(self, email, message ):
+        return f"SMS sent to {email}: {message}"
+
+class BaseAlert:
+    def __init__(self, email, message):
+        self.email = email
+        self.message = message
     
-    @classmethod
-    def create_admin(cls, username: str, session_token: str) -> "UserSession":
-        return cls(username, "Admin", session_token)
+    def dispatch(self, channel: NotificationChannel):
+        return channel.send_message(self.email, self.message)
+
+class ManagerAlert(BaseAlert):
+    def __init__(self, email, message, department):
+        super().__init__(email, message)
+        self.department = department
     
-    @staticmethod
-    def validate_token(token: str) -> bool:
-        return token.startswith("TOKEN-") and len(token) >= 8 
-    
-    
+    def dispatch(self, channel: NotificationChannel):
+        text = super().dispatch(channel)
+        return f"{text}, Dept: {self.department}"
+
+def is_valid_channel(obj: object) -> bool:
+    return isinstance(obj, NotificationChannel)
+
+class PayloadAuditor:
+    def inspect_payload(self, obj):
+       public_attributes = []
+       dic = {}
+       dic["priority"] = getattr(obj, "priority", "NORMAL")
+       for attr in dir(obj):
+           if not attr.startswith('__') and not callable(getattr(obj, attr)):
+                public_attributes.append(attr)
+       dic["public_attributes"] = public_attributes    
+       return dic        
+
+# --- INTERVIEW TEST SUITE ---
 if __name__ == "__main__":
-    # Test 1: Static Token Validation
-    print(f"Token 'TOKEN-12345' Valid: {UserSession.validate_token('TOKEN-12345')}")
-    print(f"Token 'SHORT' Valid: {UserSession.validate_token('SHORT')}")
-    print(f"Token 'INVALID-123' Valid: {UserSession.validate_token('INVALID-123')}")
+    # Test 1: Open-Closed Principle & Method Extension
+    email = EmailChannel()
+    sms = SMSChannel()
 
-    # Test 2: Standard Constructor
-    user1 = UserSession("alice_w", "Developer", "TOKEN-998877")
-    print(f"\nUser: {user1.username} | Role: {user1.role} | Token: {user1.session_token}")
+    base_alert = BaseAlert("alice@company.com", "Server down")
+    mgr_alert = ManagerAlert("bob@company.com", "Budget exceeded", "Finance")
 
-    # Test 3: Factory Methods
-    guest = UserSession.create_guest("guest_bob")
-    admin = UserSession.create_admin("boss_charlie", "TOKEN-554433")
+    print("--- Testing Alerts & Method Extension ---")
+    print(base_alert.dispatch(email))
+    print(mgr_alert.dispatch(sms))
 
-    print(f"Guest: {guest.username} | Role: {guest.role} | Token: {guest.session_token}")
-    print(f"Admin: {admin.username} | Role: {admin.role} | Token: {admin.session_token}")
+    # Test 2: Dynamic Object Inspection
+    class EventPayload:
+        def __init__(self, event_id: int, message: str):
+            self.event_id = event_id
+            self.message = message
 
-    # Test 4: Global Counter Verification
-    print(f"\nTotal Active Sessions: {UserSession.active_sessions}")
-        
+    class PriorityPayload:
+        def __init__(self, event_id: int, priority: str):
+            self.event_id = event_id
+            self.priority = priority
+
+    auditor = PayloadAuditor()
+    print("\n--- Testing Object Inspection ---")
+    print(auditor.inspect_payload(EventPayload(101, "System Reboot")))
+    print(auditor.inspect_payload(PriorityPayload(202, "CRITICAL")))
+
+    # Test 3: Type Hierarchy Validation
+    print("\n--- Testing Type Hierarchy Verification ---")
+    print(f"EmailChannel is valid: {is_valid_channel(email)}")
+    print(f"SMSChannel is valid: {is_valid_channel(sms)}")
+    print(f"Raw String is valid: {is_valid_channel('Not a channel')}")
