@@ -1,13 +1,20 @@
-from concurrent.futures import ThreadPoolExecutor
-import time
+import threading
 
-def fetchUser(userId):
-    time.sleep(1)
-    return f"User data for ID: {userId}"
+balance = 0
+lock = threading.Lock()
 
-userId = [101, 102, 103, 104, 105]
+def deposit(amount):
+    global balance
+    for _ in range(100000):
+        with lock:
+            balance += amount
 
-with ThreadPoolExecutor(max_workers=1) as executor:
-    results = executor.map(fetchUser, userId) 
-    for result in results:
-        print(result)   
+t1 = threading.Thread(target=deposit, args=(1,))
+t2 = threading.Thread(target=deposit, args=(1,))
+
+t1.start()
+t2.start()
+t1.join()
+t2.join()
+
+print(f"final balance {balance}")
