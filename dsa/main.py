@@ -1,17 +1,13 @@
-import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 
-def downloadFile(filename, duration):
-    print(f"[{filename}] Start download...")
-    time.sleep(duration)
-    print(f"[{filename}] Download finished...")
-    
-thread1 = threading.Thread(target=downloadFile, args=("file1.zip", 3))
-thread2 = threading.Thread(target=downloadFile, args=("file2.zip", 1))
+def fetchUser(userId):
+    time.sleep(1)
+    return f"User data for ID: {userId}"
 
-thread1.start()
-thread2.start()
+userId = [101, 102, 103, 104, 105]
 
-thread1.join()
-thread2.join()
-print("All download complete!!!")
+with ThreadPoolExecutor(max_workers=1) as executor:
+    results = executor.map(fetchUser, userId) 
+    for result in results:
+        print(result)   
