@@ -1,41 +1,41 @@
-class EmployeeProfile:
-    def __init__(self, name: str, ssn: str, salary: float):
-        self.name = name
-        self.__ssn = ssn
-        self.__salary = salary
-
-    @property
-    def salary(self) -> float:
-        return self.__salary
+class UserSession:
+    active_sessions = 0
+    def __init__(self, username: str, role: str, session_token: str) -> None:
+        self.username = username
+        self.role = role
+        self.session_token = session_token
+        type(self).active_sessions += 1
+        
+    @classmethod
+    def create_guest(cls, username: str) -> "UserSession":
+        return cls(username, "Guest", "GUEST-TEMP")
     
-    @salary.setter
-    def salary(self, amount: float) -> None:
-        if amount <= 0.0:
-            raise ValueError("Salary must be positive.")
-        self.__salary = amount
+    @classmethod
+    def create_admin(cls, username: str, session_token: str) -> "UserSession":
+        return cls(username, "Admin", session_token)
     
-    @property
-    def masked_ssn(self) -> str:
-        return "XXX-XX-" + self.__ssn[-4:]
+    @staticmethod
+    def validate_token(token: str) -> bool:
+        return token.startswith("TOKEN-") and len(token) >= 8 
     
     
 if __name__ == "__main__":
-    emp = EmployeeProfile("Sarah Connor", "123-45-6789", 75000.0)
+    # Test 1: Static Token Validation
+    print(f"Token 'TOKEN-12345' Valid: {UserSession.validate_token('TOKEN-12345')}")
+    print(f"Token 'SHORT' Valid: {UserSession.validate_token('SHORT')}")
+    print(f"Token 'INVALID-123' Valid: {UserSession.validate_token('INVALID-123')}")
 
-    # Test 1: Property Getters
-    print(f"Employee: {emp.name}")
-    print(f"Masked SSN: {emp.masked_ssn}")
-    print(f"Current Salary: ${emp.salary:.2f}")
+    # Test 2: Standard Constructor
+    user1 = UserSession("alice_w", "Developer", "TOKEN-998877")
+    print(f"\nUser: {user1.username} | Role: {user1.role} | Token: {user1.session_token}")
 
-    # Test 2: Valid Salary Update
-    emp.salary = 82000.0
-    print(f"Updated Salary: ${emp.salary:.2f}")
+    # Test 3: Factory Methods
+    guest = UserSession.create_guest("guest_bob")
+    admin = UserSession.create_admin("boss_charlie", "TOKEN-554433")
 
-    # Test 3: Invalid Salary Validation Safeguard
-    try:
-        emp.salary = -5000.0
-    except ValueError as e:
-        print(f"PASS: Caught invalid salary update -> {e}")
+    print(f"Guest: {guest.username} | Role: {guest.role} | Token: {guest.session_token}")
+    print(f"Admin: {admin.username} | Role: {admin.role} | Token: {admin.session_token}")
 
-    # Test 4: Private Name-Mangling Access Verification
-    print(f"Mangled Salary Access: ${emp._EmployeeProfile__salary:.2f}") 
+    # Test 4: Global Counter Verification
+    print(f"\nTotal Active Sessions: {UserSession.active_sessions}")
+        
