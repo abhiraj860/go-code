@@ -1,11 +1,14 @@
-import re
+import asyncio
 
-sample = "Order #A-102 cost $45.99 on 2026-09-18"
+async def fetchData():
+    print("Start fetching...")
+    await asyncio.sleep(2)
+    print("Data fetched!")
+    return {"data": 100} 
 
-numbers = re.findall(r"\d+\.?\d*", sample)
-print(numbers)
+async def main():
+    result = await fetchData()
+    print(f"Result {result}")   
 
-date = re.search(r"\d{4}-\d{2}-\d{2}", sample)
-print(date.group())
-
-
+print("Hello")
+asyncio.run(main())
