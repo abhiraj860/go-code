@@ -1,16 +1,21 @@
-from multiprocessing import cpu_count, Pool
+from multiprocessing import Process, Queue
 
-def calc(num):
-    total = sum([n * n for n in range(num)])
-    print(f"The total is {total}")
+def fn(q, id):
+    result = f"The work id {id} is completed"
+    q.put(result)
     
-
+    
+    
 if __name__ == "__main__":
-    print(f"The total cpu count is {cpu_count()}")
-    arr = [1_000_000, 2_000_000, 10_00_000, 500_000, 900_0000]
-    with Pool() as pool:
-        pool.map(calc, arr)
-        
+    q = Queue()
+    processes = []
+    for k in range(3):
+        p = Process(target=fn, args=(q, k))
+        processes.append(p)
+        p.start()
 
+    for j in processes:
+        print(q.get())
+        j.join()
+    print("completed")
     
-    print("Completed")    
