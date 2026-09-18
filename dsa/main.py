@@ -13,9 +13,11 @@ if __name__ == "__main__":
         p = Process(target=fn, args=(q, k))
         processes.append(p)
         p.start()
-
-    for j in processes:
+        
+    for k in range(len(processes)):
         print(q.get())
+    
+    for j in processes:
         j.join()
     print("completed")
     
