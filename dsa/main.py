@@ -1,22 +1,16 @@
-import multiprocessing
-import time
+from multiprocessing import cpu_count, Pool
 
-def sumOfSquare(nums):
-    time.sleep(5)
-    total = sum(n * n for n in nums)
+def calc(num):
+    total = sum([n * n for n in range(num)])
     print(f"The total is {total}")
     
+
 if __name__ == "__main__":
-    nums = list(range(10_000_000))
-    m1 = multiprocessing.Process(target=sumOfSquare, args = (nums,))
-    m2 = multiprocessing.Process(target=sumOfSquare, args = (nums,))
-   
-    m1.start()
-    m2.start()
-   
-    print("Completed")
-   
-    m1.join()
-    m2.join()
+    print(f"The total cpu count is {cpu_count()}")
+    arr = [1_000_000, 2_000_000, 10_00_000, 500_000, 900_0000]
+    with Pool() as pool:
+        pool.map(calc, arr)
+        
+
     
-    
+    print("Completed")    
