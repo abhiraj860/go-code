@@ -2,6 +2,45 @@ import unittest
 from abc import ABC
 from vehicle import VehicleSize, Vehicle, Motorcycle, Car, Truck
 from parking_spot import ParkingSpot
+from parking_floor import ParkingFloor
+
+
+class TestBenchmark3(unittest.TestCase):
+    def setUp(self):
+        self.floor = ParkingFloor(1)
+        self.floor.add_spot(ParkingSpot("1-S1", VehicleSize.SMALL))
+        self.floor.add_spot(ParkingSpot("1-M1", VehicleSize.MEDIUM))
+        self.floor.add_spot(ParkingSpot("1-M2", VehicleSize.MEDIUM))
+        self.moto = Motorcycle("M-1")
+        self.car = Car("C-1")
+
+    def test_floor_initialization(self):
+        self.assertEqual(self.floor.floor_number, 1)
+        self.assertEqual(len(self.floor.spots), 3)
+        self.assertIn("1-S1", self.floor.spots)
+
+    def test_find_available_spot(self):
+        # Should find an exact match for Car (Medium)
+        spot = self.floor.find_available_spot(self.car)
+        self.assertIsNotNone(spot)
+        self.assertEqual(spot.spot_size, VehicleSize.MEDIUM)
+        
+        # Park the car to occupy the spot
+        spot.park_vehicle(self.car)
+        
+        # Should find the second medium spot for another car
+        car2 = Car("C-2")
+        spot2 = self.floor.find_available_spot(car2)
+        self.assertIsNotNone(spot2)
+        self.assertNotEqual(spot.spot_id, spot2.spot_id)
+        
+        # Park second car, no medium spots left
+        spot2.park_vehicle(car2)
+        car3 = Car("C-3")
+        self.assertIsNone(self.floor.find_available_spot(car3))
+        
+        # Small spot should still be available for motorcycle
+        self.assertIsNotNone(self.floor.find_available_spot(self.moto))
 
 class TestBenchmark2(unittest.TestCase):
     def setUp(self):
