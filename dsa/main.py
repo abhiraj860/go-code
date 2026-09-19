@@ -1,2 +1,1 @@
 lst = [[]]
-print(len(lst))
