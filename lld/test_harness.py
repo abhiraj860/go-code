@@ -3,6 +3,44 @@ from abc import ABC
 from vehicle import VehicleSize, Vehicle, Motorcycle, Car, Truck
 from parking_spot import ParkingSpot
 from parking_floor import ParkingFloor
+from parking_lot_system import ParkingLotSystem, ParkingTicket
+import time
+
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        # Reset singleton for testing purposes 
+        ParkingLotSystem._instance = None
+        self.system = ParkingLotSystem.get_instance()
+        
+        self.floor1 = ParkingFloor(1)
+        self.floor1.add_spot(ParkingSpot("1-S1", VehicleSize.SMALL))
+        self.system.add_floor(self.floor1)
+        
+        self.moto = Motorcycle("M-1")
+
+    def test_singleton(self):
+        system2 = ParkingLotSystem.get_instance()
+        self.assertIs(self.system, system2)
+
+    def test_parking_ticket_creation(self):
+        spot = ParkingSpot("TEST-1", VehicleSize.SMALL)
+        ticket = ParkingTicket("TKT-123", self.moto, spot)
+        self.assertEqual(ticket.ticket_id, "TKT-123")
+        self.assertEqual(ticket.vehicle, self.moto)
+        self.assertIsNotNone(ticket.entry_timestamp)
+        self.assertIsNone(ticket.exit_timestamp)
+
+    def test_park_vehicle_system(self):
+        ticket = self.system.park_vehicle(self.moto)
+        self.assertIsNotNone(ticket)
+        self.assertEqual(ticket.vehicle, self.moto)
+        self.assertIn(ticket.ticket_id, self.system.active_tickets)
+        self.assertFalse(ticket.spot.is_available())
+        
+        # System is full, trying to park a car should return None
+        car = Car("C-1")
+        no_ticket = self.system.park_vehicle(car)
+        self.assertIsNone(no_ticket)
 
 
 class TestBenchmark3(unittest.TestCase):
