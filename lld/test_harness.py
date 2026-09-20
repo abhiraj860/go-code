@@ -4,7 +4,42 @@ from vehicle import VehicleSize, Vehicle, Motorcycle, Car, Truck
 from parking_spot import ParkingSpot
 from parking_floor import ParkingFloor
 from parking_lot_system import ParkingLotSystem, ParkingTicket
+from parking_strategy import NearestFirstStrategy, FarthestFirstStrategy
 import time
+
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        # Reset singleton for a clean slate
+        ParkingLotSystem._instance = None
+        self.system = ParkingLotSystem.get_instance()
+        
+        self.floor1 = ParkingFloor(1)
+        self.floor1.add_spot(ParkingSpot("1-M1", VehicleSize.MEDIUM))
+        
+        self.floor2 = ParkingFloor(2)
+        self.floor2.add_spot(ParkingSpot("2-M1", VehicleSize.MEDIUM))
+        
+        self.system.add_floor(self.floor1)
+        self.system.add_floor(self.floor2)
+        
+        self.car = Car("C-1")
+
+    def test_nearest_first_strategy(self):
+        self.system.set_parking_strategy(NearestFirstStrategy())
+        ticket = self.system.park_vehicle(self.car)
+        
+        # Should find the spot on the first floor
+        self.assertIsNotNone(ticket)
+        self.assertEqual(ticket.spot.spot_id, "1-M1")
+
+    def test_farthest_first_strategy(self):
+        self.system.set_parking_strategy(FarthestFirstStrategy())
+        ticket = self.system.park_vehicle(self.car)
+        
+        # Should skip floor 1 and find the spot on the second floor
+        self.assertIsNotNone(ticket)
+        self.assertEqual(ticket.spot.spot_id, "2-M1")
+        
 
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
