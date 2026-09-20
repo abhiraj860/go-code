@@ -2,6 +2,7 @@ from vehicle import Vehicle
 from parking_spot import ParkingSpot
 from parking_floor import ParkingFloor
 from parking_strategy import NearestFirstStrategy, ParkingStrategy
+from fee_strategy import FlatRateFeeStrategy, FeeStrategy
 import time
 import uuid
 
@@ -22,6 +23,7 @@ class ParkingLotSystem:
         self.floors = []
         self.active_tickets = {}
         self.parking_strategy = NearestFirstStrategy()
+        self.fee_strategy = FlatRateFeeStrategy()
     
     @classmethod
     def get_instance(cls):
@@ -31,6 +33,10 @@ class ParkingLotSystem:
     
     def set_parking_strategy(self, strategy: ParkingStrategy):
         self.parking_strategy = strategy
+        return
+    
+    def set_fee_strategy(self, strategy: FeeStrategy):
+        self.fee_strategy = strategy
         return
     
     def add_floor(self, floor: ParkingFloor):
@@ -45,3 +51,15 @@ class ParkingLotSystem:
             self.active_tickets[ticketId] = ticket
             return ticket         
         return None
+    
+    def unpark_vehicle(self, ticket_id: ParkingTicket):
+        if ticket_id in self.active_tickets:
+            ticket = self.active_tickets[ticket_id]
+            ticket.exit_timestamp = time.time()
+            cost = self.fee_strategy.calculate_fee(ticket) 
+            ticket.spot.unpark_vehicle()
+            self.active_tickets.pop(ticket_id, None) 
+            return cost
+            
+        else:
+            raise LookupError("Ticket not found")

@@ -5,7 +5,55 @@ from parking_spot import ParkingSpot
 from parking_floor import ParkingFloor
 from parking_lot_system import ParkingLotSystem, ParkingTicket
 from parking_strategy import NearestFirstStrategy, FarthestFirstStrategy
+from fee_strategy import FlatRateFeeStrategy, VehicleBasedFeeStrategy
+import math
 import time
+
+
+class TestBenchmark6(unittest.TestCase):
+    def setUp(self):
+        ParkingLotSystem._instance = None
+        self.system = ParkingLotSystem.get_instance()
+        
+        self.floor = ParkingFloor(1)
+        self.spot1 = ParkingSpot("1-S1", VehicleSize.SMALL)
+        self.spot2 = ParkingSpot("1-M1", VehicleSize.MEDIUM)
+        self.floor.add_spot(self.spot1)
+        self.floor.add_spot(self.spot2)
+        self.system.add_floor(self.floor)
+        
+        self.moto = Motorcycle("M-1")
+        self.car = Car("C-1")
+
+    def test_flat_rate_fee_and_unpark(self):
+        self.system.set_fee_strategy(FlatRateFeeStrategy())
+        ticket = self.system.park_vehicle(self.moto)
+        
+        # Simulate 2 hours of parking time
+        ticket.entry_timestamp -= (2 * 3600)
+        
+        fee = self.system.unpark_vehicle(ticket.ticket_id)
+        
+        # Flat rate is 10/hr, so 2 hours should be ~20.0
+        # Using AlmostEqual to account for tiny float differences in time.time()
+        self.assertAlmostEqual(fee, 20.0, places=1)
+        
+        # Verify spot is freed and ticket is removed
+        self.assertTrue(self.spot1.is_available())
+        self.assertNotIn(ticket.ticket_id, self.system.active_tickets)
+
+    def test_vehicle_based_fee(self):
+        self.system.set_fee_strategy(VehicleBasedFeeStrategy())
+        ticket = self.system.park_vehicle(self.car)
+        
+        # Simulate 3 hours of parking time
+        ticket.entry_timestamp -= (3 * 3600)
+        
+        fee = self.system.unpark_vehicle(ticket.ticket_id)
+        
+        # Car is MEDIUM, rate is 20/hr, 3 hours should be ~60.0
+        self.assertAlmostEqual(fee, 60.0, places=1)
+        
 
 class TestBenchmark5(unittest.TestCase):
     def setUp(self):
