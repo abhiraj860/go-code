@@ -5,6 +5,7 @@ from parking_strategy import NearestFirstStrategy, ParkingStrategy
 from fee_strategy import FlatRateFeeStrategy, FeeStrategy
 import time
 import uuid
+import threading
 
 class ParkingTicket:
     def __init__(self, ticket_id: str, vehicle: Vehicle, spot: ParkingSpot):
@@ -24,6 +25,7 @@ class ParkingLotSystem:
         self.active_tickets = {}
         self.parking_strategy = NearestFirstStrategy()
         self.fee_strategy = FlatRateFeeStrategy()
+        self.lock = threading.Lock()
     
     @classmethod
     def get_instance(cls):
@@ -43,23 +45,25 @@ class ParkingLotSystem:
         self.floors.append(floor)
     
     def park_vehicle(self, vehicle: Vehicle):
-        available_spot = self.parking_strategy.find_spot(self.floors, vehicle) 
-        if available_spot:
-            available_spot.park_vehicle(vehicle) 
-            ticketId = str(uuid.uuid4())
-            ticket = ParkingTicket(ticketId, vehicle, available_spot)
-            self.active_tickets[ticketId] = ticket
-            return ticket         
-        return None
+        with self.lock:
+            available_spot = self.parking_strategy.find_spot(self.floors, vehicle) 
+            if available_spot:
+                available_spot.park_vehicle(vehicle) 
+                ticketId = str(uuid.uuid4())
+                ticket = ParkingTicket(ticketId, vehicle, available_spot)
+                self.active_tickets[ticketId] = ticket
+                return ticket         
+            return None
     
     def unpark_vehicle(self, ticket_id: ParkingTicket):
-        if ticket_id in self.active_tickets:
-            ticket = self.active_tickets[ticket_id]
-            ticket.exit_timestamp = time.time()
-            cost = self.fee_strategy.calculate_fee(ticket) 
-            ticket.spot.unpark_vehicle()
-            self.active_tickets.pop(ticket_id, None) 
-            return cost
-            
-        else:
-            raise LookupError("Ticket not found")
+        with self.lock:
+            if ticket_id in self.active_tickets:
+                ticket = self.active_tickets[ticket_id]
+                ticket.exit_timestamp = time.time()
+                cost = self.fee_strategy.calculate_fee(ticket) 
+                ticket.spot.unpark_vehicle()
+                self.active_tickets.pop(ticket_id, None) 
+                return cost
+                
+            else:
+                raise LookupError("Ticket not found")

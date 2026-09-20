@@ -8,7 +8,43 @@ from parking_strategy import NearestFirstStrategy, FarthestFirstStrategy
 from fee_strategy import FlatRateFeeStrategy, VehicleBasedFeeStrategy
 import math
 import time
+import concurrent.futures
+import threading
 
+class TestBenchmark7(unittest.TestCase):
+    def setUp(self):
+        ParkingLotSystem._instance = None
+        self.system = ParkingLotSystem.get_instance()
+        
+        # Create a floor with exactly 50 small spots
+        self.floor = ParkingFloor(1)
+        for i in range(50):
+            self.floor.add_spot(ParkingSpot(f"1-S{i}", VehicleSize.SMALL))
+        self.system.add_floor(self.floor)
+
+    def test_concurrent_parking(self):
+        # We have 50 spots, let's try to park 60 motorcycles concurrently
+        motos = [Motorcycle(f"M-{i}") for i in range(60)]
+        
+        def park_task(moto):
+            return self.system.park_vehicle(moto)
+            
+        tickets = []
+        # Simulate 20 gates/threads trying to park cars at once
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(park_task, moto) for moto in motos]
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    tickets.append(result)
+                    
+        # We should have exactly 50 successful tickets, and 10 vehicles turned away
+        self.assertEqual(len(tickets), 50)
+        self.assertEqual(len(self.system.active_tickets), 50)
+        
+        # Ensure absolutely no duplicate spots were assigned due to race conditions
+        assigned_spots = set(ticket.spot.spot_id for ticket in tickets)
+        self.assertEqual(len(assigned_spots), 50)
 
 class TestBenchmark6(unittest.TestCase):
     def setUp(self):
