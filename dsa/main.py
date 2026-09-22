@@ -43,8 +43,17 @@ def my_bellman_ford(vertices, edges, start, target):
     Input: vertices (list), edges (list of tuples: (u, v, weight)), start, target
     Return: The shortest distance as an integer or float.
     """
-    pass
-
+    dist = {i:float("inf") for i in vertices} 
+    dist[start] = 0 
+    for _ in range(len(dist) - 1):
+        
+        for edge in edges:
+            
+            u, v, wt = edge
+            if dist[u] + wt < dist[v]:
+                dist[v] = dist[u] + wt
+    return dist[target]
+    
 def my_floyd_warshall(matrix):
     """
     Input: 2D list (adjacency matrix) with float('infinity') for no edge
