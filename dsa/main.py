@@ -72,7 +72,18 @@ def my_dag_shortest_path(graph, start, target):
     Input: graph (dict of dicts), start (str), target (str)
     Return: The shortest distance as an integer or float.
     """
-    pass
+    dist = {i:float("inf") for i in graph}
+    dist[start] = 0
+    pq = [(0, start)]
+    heapq.heapify(pq)
+    while pq:
+        currDist, currNode = heapq.heappop(pq)
+        for nbr, wt in graph[currNode].items():
+            if currDist + wt > dist[nbr]:
+                continue
+            dist[nbr] = currDist + wt
+            heapq.heappush(pq, (dist[nbr], nbr))
+    return dist[target]
 
 
 # ==========================================
