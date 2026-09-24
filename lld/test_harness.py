@@ -3,6 +3,49 @@ from datetime import datetime
 import time
 from formatters import LogFormatter, SimpleTextFormatter
 from logging_core import LogLevel, LogMessage
+import io
+import os
+import tempfile
+from unittest.mock import patch
+from appenders import LogAppender, ConsoleAppender, FileAppender
+
+class TestBenchmark3(unittest.TestCase):
+    def setUp(self):
+        self.msg = LogMessage(LogLevel.ERROR, "Database connection failed")
+        self.formatter = SimpleTextFormatter()
+
+    def test_appender_interface(self):
+        with self.assertRaises(TypeError):
+            LogAppender()
+
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_console_appender(self, mock_stdout):
+        appender = ConsoleAppender()
+        appender.set_formatter(self.formatter)
+        appender.append(self.msg)
+        
+        output = mock_stdout.getvalue()
+        self.assertIn("ERROR", output)
+        self.assertIn("Database connection failed", output)
+
+    def test_file_appender(self):
+        # Use a temporary file to avoid cluttering the directory
+        fd, filepath = tempfile.mkstemp()
+        os.close(fd)
+        
+        try:
+            appender = FileAppender(filepath)
+            appender.set_formatter(self.formatter)
+            appender.append(self.msg)
+            appender.close()
+            
+            with open(filepath, 'r') as f:
+                output = f.read()
+                
+            self.assertIn("ERROR", output)
+            self.assertIn("Database connection failed", output)
+        finally:
+            os.remove(filepath)
 
 class TestBenchmark2(unittest.TestCase):
     def test_formatter_is_abstract(self):
