@@ -8,6 +8,42 @@ import os
 import tempfile
 from unittest.mock import patch
 from appenders import LogAppender, ConsoleAppender, FileAppender
+from logger import Logger
+import io
+from unittest.mock import patch
+
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        self.logger = Logger("AppLogger")
+        # Default level should be INFO, let's explicitly set to WARNING for the first test
+        self.logger.level = LogLevel.WARNING
+        
+        self.console_appender = ConsoleAppender()
+        # Using default formatter for simplicity
+        self.logger.add_appender(self.console_appender)
+
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_logger_filters_by_level(self, mock_stdout):
+        # INFO is lower severity than WARNING, so this should be ignored
+        self.logger.info("This is an info message")
+        self.assertEqual(mock_stdout.getvalue(), "")
+        
+        # WARNING is equal severity, so it should be processed
+        self.logger.warning("This is a warning message")
+        self.assertIn("This is a warning message", mock_stdout.getvalue())
+
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_logger_convenience_methods(self, mock_stdout):
+        # Lower threshold to DEBUG to let everything through
+        self.logger.level = LogLevel.DEBUG
+        
+        self.logger.debug("Debug msg")
+        self.logger.error("Error msg")
+        
+        output = mock_stdout.getvalue()
+        self.assertIn("Debug msg", output)
+        self.assertIn("Error msg", output)
+        
 
 class TestBenchmark3(unittest.TestCase):
     def setUp(self):
