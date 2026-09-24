@@ -13,6 +13,64 @@ import io
 from unittest.mock import patch
 from log_manager import LogManager
 from logger import Logger
+import concurrent.futures
+import threading
+import tempfile
+import os
+
+
+class TestBenchmark6(unittest.TestCase):
+    def setUp(self):
+        LogManager._instance = None
+        self.manager = LogManager.get_instance()
+
+    def test_concurrent_logger_creation(self):
+        # 100 threads trying to get the same logger simultaneously
+        def get_logger_task():
+            return self.manager.get_logger("ConcurrentLogger")
+            
+        loggers = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+            futures = [executor.submit(get_logger_task) for _ in range(100)]
+            for future in concurrent.futures.as_completed(futures):
+                loggers.append(future.result())
+                
+        # All 100 threads should have received the exact same memory instance
+        first_logger = loggers[0]
+        for logger in loggers:
+            self.assertIs(logger, first_logger)
+            
+        # Manager should only have 1 logger stored, not 100
+        self.assertEqual(len(self.manager.loggers), 1)
+
+    def test_concurrent_file_logging(self):
+        fd, filepath = tempfile.mkstemp()
+        os.close(fd)
+        
+        try:
+            logger = self.manager.get_logger("FileLogger")
+            appender = FileAppender(filepath)
+            logger.add_appender(appender)
+            
+            def log_task(thread_id):
+                logger.info(f"Message from thread {thread_id}")
+                
+            # 100 threads writing 1 message each
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                futures = [executor.submit(log_task, i) for i in range(100)]
+                concurrent.futures.wait(futures)
+                
+            # Verify file contents
+            with open(filepath, 'r') as f:
+                lines = f.readlines()
+                
+            # If thread-safe, exactly 100 lines should exist without interleaving
+            self.assertEqual(len(lines), 100)
+            
+        finally:
+            if 'appender' in locals():
+                appender.close()
+            os.remove(filepath)
 
 class TestBenchmark5(unittest.TestCase):
     def setUp(self):
