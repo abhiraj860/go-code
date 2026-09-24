@@ -11,7 +11,33 @@ from appenders import LogAppender, ConsoleAppender, FileAppender
 from logger import Logger
 import io
 from unittest.mock import patch
+from log_manager import LogManager
+from logger import Logger
 
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        # Reset the singleton for a clean slate
+        LogManager._instance = None
+        self.manager = LogManager.get_instance()
+
+    def test_singleton_manager(self):
+        manager2 = LogManager.get_instance()
+        self.assertIs(self.manager, manager2)
+
+    def test_get_logger_creates_new(self):
+        logger = self.manager.get_logger("TestApp")
+        self.assertIsInstance(logger, Logger)
+        self.assertEqual(logger.name, "TestApp")
+        self.assertIn("TestApp", self.manager.loggers)
+
+    def test_get_logger_returns_existing(self):
+        logger1 = self.manager.get_logger("Database")
+        logger2 = self.manager.get_logger("Database")
+        
+        # Must return the exact same instance in memory
+        self.assertIs(logger1, logger2)
+        
+        
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
         self.logger = Logger("AppLogger")
