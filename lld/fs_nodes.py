@@ -37,3 +37,16 @@ class DirectoryNode(AbstractNode):
         super().__init__(name)
         self.children : dict[str, AbstractNode] = {}
         
+    def add_node(self, node: AbstractNode):
+        name = node.get_name()
+        if name in self.children:
+            raise ValueError("File Systems don't allow duplicate names in the same folder")
+        self.children[name] = node
+        node.parent = self
+    
+    def get_node(self, name: str):
+        return self.children.get(name, None)
+    
+    def get_children(self):
+        return list(self.children.values())
+        

@@ -2,6 +2,41 @@ import unittest
 import time
 from fs_nodes import AbstractNode, FileNode, DirectoryNode
 
+class TestBenchmark2(unittest.TestCase):
+    def setUp(self):
+        self.root = DirectoryNode("root")
+        self.doc_dir = DirectoryNode("docs")
+        self.readme = FileNode("readme.txt")
+        
+    def test_add_and_get_node(self):
+        self.root.add_node(self.doc_dir)
+        self.root.add_node(self.readme)
+        
+        # Verify retrieval
+        self.assertIs(self.root.get_node("docs"), self.doc_dir)
+        self.assertIs(self.root.get_node("readme.txt"), self.readme)
+        self.assertIsNone(self.root.get_node("nonexistent"))
+        
+        # Verify parent assignment
+        self.assertIs(self.doc_dir.parent, self.root)
+        self.assertIs(self.readme.parent, self.root)
+
+    def test_add_duplicate_node_raises_error(self):
+        self.root.add_node(self.doc_dir)
+        duplicate_dir = DirectoryNode("docs")
+        with self.assertRaises(ValueError):
+            self.root.add_node(duplicate_dir)
+
+    def test_get_children(self):
+        self.root.add_node(self.doc_dir)
+        self.root.add_node(self.readme)
+        
+        children = self.root.get_children()
+        self.assertEqual(len(children), 2)
+        self.assertIn(self.doc_dir, children)
+        self.assertIn(self.readme, children)
+        
+        
 class TestBenchmark1(unittest.TestCase):
     def test_abstract_node_cannot_be_instantiated(self):
         # Assuming you use the abc module for AbstractNode
