@@ -21,4 +21,23 @@ class FileSystem:
                 else:
                     raise ValueError("No directories found")
         return parent
+    
+    def mkdir(self, path:str):
+        self.traverse(path, True)
+        
+    def addFile(self, filepath: str, content: str):
+        pathSplit = filepath.rsplit("/", 1)
+        file = pathSplit[-1]
+        node = self.traverse(pathSplit[-2], True)
+        fileNode = FileNode(file)
+        fileNode.append_content(content)
+        node.add_node(fileNode)
+        return
+    
+    def ls(self, path: str):
+        parent = self.traverse(path, False)
+        return parent.get_children_name()
+    
+    
+        
                  

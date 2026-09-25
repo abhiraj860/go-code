@@ -49,4 +49,7 @@ class DirectoryNode(AbstractNode):
     
     def get_children(self):
         return list(self.children.values())
+    
+    def get_children_name(self):
+        return list(self.children.keys())
         

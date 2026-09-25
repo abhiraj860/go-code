@@ -3,6 +3,46 @@ import time
 from fs_nodes import AbstractNode, FileNode, DirectoryNode
 from file_system import FileSystem
 
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        self.fs = FileSystem()
+
+    def test_mkdir(self):
+        self.fs.mkdir("/home/user/music")
+        # Verify it was created
+        target = self.fs.traverse("/home/user/music", False)
+        self.assertIsNotNone(target)
+        self.assertEqual(target.get_name(), "music")
+
+    def test_add_file(self):
+        self.fs.addFile("/home/user/docs/resume.txt", "My Resume Content")
+        
+        # Verify the directory was created
+        docs_dir = self.fs.traverse("/home/user/docs", False)
+        self.assertIsNotNone(docs_dir)
+        
+        # Verify the file was created inside
+        file_node = docs_dir.get_node("resume.txt")
+        self.assertIsInstance(file_node, FileNode)
+        self.assertEqual(file_node.read_content(), "My Resume Content")
+
+    def test_ls(self):
+        self.fs.mkdir("/folder/subfolder")
+        self.fs.addFile("/folder/file1.txt", "Data")
+        self.fs.addFile("/folder/file2.txt", "Data")
+        
+        contents = self.fs.ls("/folder")
+        
+        self.assertEqual(len(contents), 3)
+        self.assertIn("subfolder", contents)
+        self.assertIn("file1.txt", contents)
+        self.assertIn("file2.txt", contents)
+
+    def test_ls_nonexistent_path(self):
+        with self.assertRaises(ValueError):
+            self.fs.ls("/fake/path")
+
+
 class TestBenchmark3(unittest.TestCase):
     def setUp(self):
         self.fs = FileSystem()
