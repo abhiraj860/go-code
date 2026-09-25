@@ -7,15 +7,19 @@ def min_cost(costs: List[List[int]]) -> int:
         return 0    
     houses = len(costs)
     color = len(costs[0])
+    memo = {}
     
     def helper(col, indx):
         if indx == houses:
             return 0
+        if (col,indx) in memo: 
+            return memo[(col, indx)]
         curr = costs[indx][col]
         next = float('inf')
         for k in range(color):
             if k != col:
                 next = min(next, helper(k, indx + 1))
+        memo[(col, indx)] = curr + next
         return curr + next
         
     result = float("inf")
