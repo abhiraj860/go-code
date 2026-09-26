@@ -1,4 +1,5 @@
 from fs_nodes import DirectoryNode, FileNode
+from fs_search import NodeSearchStrategy
 
 class FileSystem:
     def __init__(self):
@@ -64,3 +65,8 @@ class FileSystem:
         target_parent = self.traverse(destination_dir_path, False)
         parent_node.remove_node(node.name)
         target_parent.add_node(node)
+        
+    def search_nodes(self, directory_path : str, strategy: NodeSearchStrategy, params: dict):
+        res = self.traverse(directory_path, False)
+        return strategy.search(res, params)
+        

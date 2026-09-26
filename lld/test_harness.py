@@ -3,6 +3,65 @@ import time
 from fs_nodes import AbstractNode, FileNode, DirectoryNode
 from file_system import FileSystem
 
+from fs_search import (
+    NodeFilter, FilenameFilter, FileSizeFilter, NodeFilterChain,
+    NodeSearchStrategy, FilenameAndSizeSearchStrategy
+)
+
+class TestBenchmark6(unittest.TestCase):
+    def setUp(self):
+        self.fs = FileSystem()
+        self.fs.mkdir("/home/user/docs")
+        # Sizes will be based on content length
+        self.fs.addFile("/home/user/docs/report.txt", "Quarterly Report Data") # size: 21
+        self.fs.addFile("/home/user/docs/notes.txt", "Meeting notes")         # size: 13
+        self.fs.addFile("/home/user/docs/report_v2.txt", "Q")                  # size: 1
+        
+        self.fs.mkdir("/home/user/archive")
+        self.fs.addFile("/home/user/archive/report.txt", "Old Data")           # size: 8
+
+    def test_filename_filter(self):
+        f_filter = FilenameFilter()
+        node = self.fs.traverse("/home/user", False)
+        self.assertTrue(f_filter.apply(node, {"name": "user"}))
+        self.assertFalse(f_filter.apply(node, {"name": "docs"}))
+
+    def test_filesize_filter(self):
+        s_filter = FileSizeFilter()
+        file_node = self.fs.traverse("/home/user/docs", False).get_node("report.txt")
+        
+        # report.txt size is 21
+        self.assertTrue(s_filter.apply(file_node, {"min_size": 10}))
+        self.assertFalse(s_filter.apply(file_node, {"min_size": 50}))
+        
+        # Should safely ignore directories (return False) when filtering by size
+        dir_node = self.fs.traverse("/home/user", False)
+        self.assertFalse(s_filter.apply(dir_node, {"min_size": 1}))
+
+    def test_search_nodes_by_name(self):
+        strategy = FilenameAndSizeSearchStrategy()
+        
+        # Search by name only (recursively from /home/user)
+        params = {"name": "report.txt"}
+        results = self.fs.search_nodes("/home/user", strategy, params)
+        
+        # Should find docs/report.txt and archive/report.txt
+        self.assertEqual(len(results), 2)
+        names = [n.get_name() for n in results]
+        self.assertEqual(names.count("report.txt"), 2)
+
+    # def test_search_nodes_by_name_and_size(self):
+    #     strategy = FilenameAndSizeSearchStrategy()
+        
+    #     # Search by name AND min_size
+    #     params = {"name": "report.txt", "min_size": 10}
+    #     results = self.fs.search_nodes("/home/user", strategy, params)
+        
+    #     # Should ONLY find docs/report.txt (size 21). archive/report.txt is size 8.
+    #     self.assertEqual(len(results), 1)
+    #     self.assertIsInstance(results[0], FileNode)
+    #     self.assertEqual(results[0].read_content(), "Quarterly Report Data")
+
 class TestBenchmark5(unittest.TestCase):
     def setUp(self):
         self.fs = FileSystem()
