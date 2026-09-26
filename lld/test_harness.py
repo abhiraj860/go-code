@@ -14,38 +14,38 @@ class TestBenchmark2(unittest.TestCase):
         self.assertEqual(self.inventory.get_item("A1"), self.soda)
         self.assertIsNone(self.inventory.get_item("B1"))
 
-    # def test_is_available_and_reduce_stock(self):
-    #     self.inventory.add_item(self.chips, 1)
-    #     self.assertTrue(self.inventory.is_available("A2"))
+    def test_is_available_and_reduce_stock(self):
+        self.inventory.add_item(self.chips, 1)
+        self.assertTrue(self.inventory.is_available("A2"))
         
-    #     self.inventory.reduce_stock("A2")
-    #     self.assertFalse(self.inventory.is_available("A2"))
+        self.inventory.reduce_stock("A2")
+        self.assertFalse(self.inventory.is_available("A2"))
         
-    #     with self.assertRaises(ValueError):
-    #         self.inventory.reduce_stock("A2")
+        with self.assertRaises(ValueError):
+            self.inventory.reduce_stock("A2")
 
-    # def test_concurrent_stock_reduction(self):
-    #     # Add 100 sodas
-    #     self.inventory.add_item(self.soda, 100)
+    def test_concurrent_stock_reduction(self):
+        # Add 100 sodas
+        self.inventory.add_item(self.soda, 100)
         
-    #     # Try to buy 120 sodas concurrently
-    #     def buy_soda():
-    #         try:
-    #             self.inventory.reduce_stock("A1")
-    #             return True
-    #         except ValueError:
-    #             return False
+        # Try to buy 120 sodas concurrently
+        def buy_soda():
+            try:
+                self.inventory.reduce_stock("A1")
+                return True
+            except ValueError:
+                return False
                 
-    #     successful_buys = 0
-    #     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-    #         futures = [executor.submit(buy_soda) for _ in range(120)]
-    #         for future in concurrent.futures.as_completed(futures):
-    #             if future.result():
-    #                 successful_buys += 1
+        successful_buys = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(buy_soda) for _ in range(120)]
+            for future in concurrent.futures.as_completed(futures):
+                if future.result():
+                    successful_buys += 1
                     
-    #     # Should only successfully buy exactly 100 sodas, no negative stock
-    #     self.assertEqual(successful_buys, 100)
-    #     self.assertFalse(self.inventory.is_available("A1"))
+        # Should only successfully buy exactly 100 sodas, no negative stock
+        self.assertEqual(successful_buys, 100)
+        self.assertFalse(self.inventory.is_available("A1"))
 
 
 
