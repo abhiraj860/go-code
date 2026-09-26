@@ -26,26 +26,26 @@ class TestBenchmark5(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.fs.delete("/") # Should not allow deleting root
 
-    # def test_rename(self):
-    #     self.fs.rename("/home/user/docs", "documents")
+    def test_rename(self):
+        self.fs.rename("/home/user/docs", "documents")
         
-    #     # Old path should fail
-    #     with self.assertRaises(ValueError):
-    #         self.fs.traverse("/home/user/docs", False)
+        # Old path should fail
+        with self.assertRaises(ValueError):
+            self.fs.traverse("/home/user/docs", False)
             
-    #     # New path should work and still contain the file
-    #     new_docs = self.fs.traverse("/home/user/documents", False)
-    #     self.assertIsNotNone(new_docs.get_node("readme.txt"))
+        # New path should work and still contain the file
+        new_docs = self.fs.traverse("/home/user/documents", False)
+        self.assertIsNotNone(new_docs.get_node("readme.txt"))
 
-    # def test_move(self):
-    #     # Move readme.txt from docs to archive
-    #     self.fs.move("/home/user/docs/readme.txt", "/home/user/archive")
+    def test_move(self):
+        # Move readme.txt from docs to archive
+        self.fs.move("/home/user/docs/readme.txt", "/home/user/archive")
         
-    #     docs_dir = self.fs.traverse("/home/user/docs", False)
-    #     archive_dir = self.fs.traverse("/home/user/archive", False)
+        docs_dir = self.fs.traverse("/home/user/docs", False)
+        archive_dir = self.fs.traverse("/home/user/archive", False)
         
-    #     self.assertIsNone(docs_dir.get_node("readme.txt"))
-    #     self.assertIsNotNone(archive_dir.get_node("readme.txt"))
+        self.assertIsNone(docs_dir.get_node("readme.txt"))
+        self.assertIsNotNone(archive_dir.get_node("readme.txt"))
 
 
 class TestBenchmark4(unittest.TestCase):
