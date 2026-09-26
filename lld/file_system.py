@@ -38,6 +38,12 @@ class FileSystem:
         parent = self.traverse(path, False)
         return parent.get_children_name()
     
+    def delete(self, path: str):
+        if path == "/":
+            raise ValueError("Cannot delete root file")
+        path_split = path.rsplit("/", 1)
+        node = self.traverse(path_split[-2], False)
+        node.remove_node(path_split[-1])
     
         
                  

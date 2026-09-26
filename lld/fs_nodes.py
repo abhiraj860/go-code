@@ -15,6 +15,18 @@ class AbstractNode(ABC):
     def get_created_at(self):
         return self.created_at
     
+    def get_absolute_path(self):
+        string  = []
+        def helper(node: AbstractNode):
+             if node.name == "/":
+                 return
+             helper(node.parent)
+             string.append(node.name)
+             return
+        helper(self)
+        str = "/".join(string) 
+        return "/" + str
+    
 
 class FileNode(AbstractNode):
     def __init__(self, name, content = "", size = 0):
@@ -52,4 +64,9 @@ class DirectoryNode(AbstractNode):
     
     def get_children_name(self):
         return list(self.children.keys())
-        
+    
+    def remove_node(self, name: str):
+        if name not in self.children:
+            raise ValueError('Child does not exist')
+        _ = self.children.pop(name, None)
+    

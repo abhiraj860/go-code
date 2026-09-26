@@ -3,6 +3,51 @@ import time
 from fs_nodes import AbstractNode, FileNode, DirectoryNode
 from file_system import FileSystem
 
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        self.fs = FileSystem()
+        self.fs.addFile("/home/user/docs/readme.txt", "Data")
+        self.fs.mkdir("/home/user/archive")
+
+    def test_get_absolute_path(self):
+        node = self.fs.traverse("/home/user/docs", False)
+        self.assertEqual(node.get_absolute_path(), "/home/user/docs")
+        
+        file_node = node.get_node("readme.txt")
+        self.assertEqual(file_node.get_absolute_path(), "/home/user/docs/readme.txt")
+        
+        self.assertEqual(self.fs.root.get_absolute_path(), "/")
+
+    def test_delete(self):
+        self.fs.delete("/home/user/docs/readme.txt")
+        docs_dir = self.fs.traverse("/home/user/docs", False)
+        self.assertIsNone(docs_dir.get_node("readme.txt"))
+        
+        with self.assertRaises(ValueError):
+            self.fs.delete("/") # Should not allow deleting root
+
+    # def test_rename(self):
+    #     self.fs.rename("/home/user/docs", "documents")
+        
+    #     # Old path should fail
+    #     with self.assertRaises(ValueError):
+    #         self.fs.traverse("/home/user/docs", False)
+            
+    #     # New path should work and still contain the file
+    #     new_docs = self.fs.traverse("/home/user/documents", False)
+    #     self.assertIsNotNone(new_docs.get_node("readme.txt"))
+
+    # def test_move(self):
+    #     # Move readme.txt from docs to archive
+    #     self.fs.move("/home/user/docs/readme.txt", "/home/user/archive")
+        
+    #     docs_dir = self.fs.traverse("/home/user/docs", False)
+    #     archive_dir = self.fs.traverse("/home/user/archive", False)
+        
+    #     self.assertIsNone(docs_dir.get_node("readme.txt"))
+    #     self.assertIsNotNone(archive_dir.get_node("readme.txt"))
+
+
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
         self.fs = FileSystem()
