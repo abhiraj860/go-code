@@ -3,6 +3,36 @@ from vending_models import Item, Coin, Note
 import concurrent.futures
 from inventory import Inventory
 
+from vending_machine import VendingMachine
+from vending_states import VendingMachineState
+
+class TestBenchmark3(unittest.TestCase):
+    def setUp(self):
+        # Reset singleton for testing
+        VendingMachine._instance = None
+        self.machine = VendingMachine.get_instance()
+
+    def test_state_is_abstract(self):
+        with self.assertRaises(TypeError):
+            VendingMachineState()
+
+    def test_machine_is_singleton(self):
+        machine2 = VendingMachine.get_instance()
+        self.assertIs(self.machine, machine2)
+
+    def test_machine_initialization_and_reset(self):
+        self.assertIsNotNone(self.machine.inventory)
+        self.assertEqual(self.machine.balance, 0)
+        self.assertIsNone(self.machine.selected_item_code)
+        
+        # Modify and reset
+        self.machine.balance = 100
+        self.machine.selected_item_code = "A1"
+        self.machine.reset()
+        
+        self.assertEqual(self.machine.balance, 0)
+        self.assertIsNone(self.machine.selected_item_code)
+
 class TestBenchmark2(unittest.TestCase):
     def setUp(self):
         self.inventory = Inventory()
