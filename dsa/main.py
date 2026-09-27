@@ -39,12 +39,28 @@ class Trie:
             else:
                 return False
         return True
+    
+    def delete(self, word: str):
+        def _helper(node: Node, indx):
+            if indx == len(word):
+                node.eow = False
+                return len(node.children) == 0
+            char = word[indx]
+            child = node.children.get(char)
+            if child is None:
+                return False
+            should_delete = _helper(child, indx + 1)
+            if should_delete:
+                del node.children[char]
                 
+            return len(node.children) == 0 and not node.eow
+        return _helper(self.root, 0)            
     
 trie = Trie()
 for word in initialWords:
     trie.insert(word)
 print(trie.search("app"))
 print(trie.search("apple"))
-print(trie.search("a"))
-print(trie.starts_with("a"))
+trie.delete("apple")
+print(trie.search("app"))
+print(trie.search("apple"))
