@@ -1,4 +1,5 @@
-initialWords = ["apple", "app", "apartment"]
+# initialWords = ["apple", "app", "apartment", "ap", "apricot"]
+initialWords = ["ball", "bath", "bat", "batter"]
 
 class Node:
     def __init__(self, char: str):
@@ -46,7 +47,7 @@ class Trie:
                 node.eow = False
                 return len(node.children) == 0
             char = word[indx]
-            child = node.children.get(char)
+            child = node.children.get(char, None)
             if child is None:
                 return False
             should_delete = _helper(child, indx + 1)
@@ -56,11 +57,26 @@ class Trie:
             return len(node.children) == 0 and not node.eow
         return _helper(self.root, 0)            
     
+    def _helper(self, curr_node: Node, result: list[str], word: str):
+        if curr_node.eow:
+            result.append(word)
+        for ch in curr_node.children:
+            node = curr_node.children[ch]
+            self._helper(node, result, word + ch)
+        return
+    
+    def prefix(self, word: str):
+        curr_node = self.root
+        for ch in word:
+            if ch not in curr_node.children:
+                return []
+            curr_node = curr_node.children[ch]
+        result = []
+        self._helper(curr_node, result, word)
+        return result
+    
 trie = Trie()
 for word in initialWords:
     trie.insert(word)
-print(trie.search("app"))
-print(trie.search("apple"))
-trie.delete("apple")
-print(trie.search("app"))
-print(trie.search("apple"))
+# print(trie.search("apartment"))
+print(trie.prefix("bat"))
