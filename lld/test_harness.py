@@ -6,6 +6,46 @@ from inventory import Inventory
 from vending_machine import VendingMachine
 from vending_states import VendingMachineState
 
+from vending_machine import VendingMachine
+from vending_states import IdleState, ItemSelectedState
+from vending_models import Item, Coin
+
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        VendingMachine._instance = None
+        self.machine = VendingMachine.get_instance()
+        self.machine.inventory.add_item(Item("Soda", 150, "A1"), 5)
+        # Manually set initial state
+        self.machine.set_state(IdleState())
+
+    def test_idle_state_select_valid_item(self):
+        self.machine.current_state.select_item("A1", self.machine)
+        self.assertEqual(self.machine.selected_item_code, "A1")
+        self.assertIsInstance(self.machine.current_state, ItemSelectedState)
+
+    def test_idle_state_select_invalid_item(self):
+        with self.assertRaises(ValueError):
+            self.machine.current_state.select_item("B2", self.machine)
+
+    def test_idle_state_invalid_actions(self):
+        with self.assertRaises(ValueError):
+            self.machine.current_state.insert_coin(Coin.QUARTER, self.machine)
+            
+    def test_item_selected_state_insert_money(self):
+        # Force transition to ItemSelectedState
+        self.machine.current_state.select_item("A1", self.machine)
+        
+        self.machine.current_state.insert_coin(Coin.QUARTER, self.machine)
+        self.assertEqual(self.machine.balance, 25)
+        # It should transition to HasMoneyState (which we stubbed out)
+        self.assertNotIsInstance(self.machine.current_state, ItemSelectedState)
+
+    def test_item_selected_invalid_actions(self):
+        self.machine.current_state.select_item("A1", self.machine)
+        with self.assertRaises(ValueError):
+            self.machine.current_state.dispense(self.machine)
+
+
 class TestBenchmark3(unittest.TestCase):
     def setUp(self):
         # Reset singleton for testing
