@@ -104,7 +104,7 @@ class DispensingState(VendingMachineState):
 
     def dispense(self, machine: VendingMachine):
         selected_item = machine.selected_item_code
-        item = machine.inventory.get_item(selected_item)
+        item: Item = machine.inventory.get_item(selected_item)
         change = machine.balance - item.price
         machine.inventory.reduce_stock(selected_item)
         machine.reset()
