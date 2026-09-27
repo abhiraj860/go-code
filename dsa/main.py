@@ -1,35 +1,50 @@
-s1 = "hellointerview"
-s2 = "her"
+initialWords = ["apple", "app", "apartment"]
 
-def min_window(s1: str, s2: str) -> str:
+class Node:
+    def __init__(self, char: str):
+        self.char = char
+        self.eow = False
+        self.children: dict[str, Node] = {}
+        
+class Trie:
+    def __init__(self):
+        self.root = Node("")
+        
+    def insert(self, string: str):
+        curr_node = self.root
+        for ch in string:
+            if ch in curr_node.children:
+                curr_node = curr_node.children[ch]
+            else:
+                new_node = Node(ch)
+                curr_node.children[ch] = new_node
+                curr_node = curr_node.children[ch]
+        curr_node.eow = True
+        return
     
-    def bottomUp():
-        n1 = len(s1)
-        n2 = len(s2)
-        dp = [
-            [[(float("inf"), "") for _ in range(n1 + 1)] for _ in range(n2 + 1)] for _ in range(n1 + 1)
-        ]
-        for i in range(n1, -1, -1):
-            for j in range(n2, -1, -1):
-                for start in range(-1, n1):
-                    start_idx = start + 1
-                    if j == n2:
-                        dp[i][j][start_idx] = (i - start, s1[start: i])
-                        continue
-                    if i == n1:
-                        dp[i][j][start_idx] = (float("inf"), "")
-                        continue
-                    best_len, best_str = float("inf"), ""
-                    if s1[i] == s2[j]:
-                        best_len, best_str = dp[i + 1][j + 1][(i if start == -1 else start) + 1]
-                    curr_len, curr_str = dp[i + 1][j][start_idx]
-                    if curr_len < best_len:
-                        best_len = curr_len 
-                        best_str = curr_str
-                    dp[i][j][start_idx] = (best_len, best_str) 
-        
-        
-        (_, text) = dp[0][0][0]
-        return text
-    return bottomUp()
-print(min_window(s1, s2))
+    def search(self, string: str):
+        curr_node = self.root
+        for ch in string:
+            if ch in curr_node.children:
+                curr_node = curr_node.children[ch]
+            else:
+                return False
+        return curr_node.eow == True
+    
+    def starts_with(self, string: str):
+        curr_node = self.root
+        for ch in string:
+            if ch in curr_node.children:
+                curr_node = curr_node.children[ch]
+            else:
+                return False
+        return True
+                
+    
+trie = Trie()
+for word in initialWords:
+    trie.insert(word)
+print(trie.search("app"))
+print(trie.search("apple"))
+print(trie.search("a"))
+print(trie.starts_with("a"))
