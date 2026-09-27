@@ -10,6 +10,53 @@ from vending_machine import VendingMachine
 from vending_states import IdleState, ItemSelectedState
 from vending_models import Item, Coin
 
+from vending_states import HasMoneyState, DispensingState
+from vending_models import Item, Coin, Note
+
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        VendingMachine._instance = None
+        self.machine = VendingMachine.get_instance()
+        self.machine.inventory.add_item(Item("Soda", 150, "A1"), 5)
+        self.machine.set_state(IdleState())
+
+    def test_has_money_insufficient_funds(self):
+        self.machine.current_state.select_item("A1", self.machine)
+        self.machine.current_state.insert_coin(Coin.QUARTER, self.machine) # 25 cents
+        
+        # Balance is 25, price is 150
+        with self.assertRaises(ValueError):
+            self.machine.current_state.dispense(self.machine)
+
+    def test_has_money_refund(self):
+        self.machine.current_state.select_item("A1", self.machine)
+        self.machine.current_state.insert_note(Note.ONE, self.machine) # 100 cents
+        
+        self.machine.current_state.refund(self.machine)
+        
+        self.assertEqual(self.machine.balance, 0)
+        self.assertIsNone(self.machine.selected_item_code)
+        self.assertIsInstance(self.machine.current_state, IdleState)
+
+    def test_successful_dispense_and_change(self):
+        self.machine.current_state.select_item("A1", self.machine)
+        self.machine.current_state.insert_note(Note.ONE, self.machine) # 100 cents
+        self.machine.current_state.insert_note(Note.ONE, self.machine) # 100 cents (Total 200)
+        
+        # This should transition to DispensingState and return the product
+        product_name, change = self.machine.current_state.dispense(self.machine)
+        
+        self.assertEqual(product_name, "Soda")
+        self.assertEqual(change, 50)
+        self.assertEqual(self.machine.inventory.stock_map["A1"], 4)
+        self.assertIsInstance(self.machine.current_state, IdleState)
+        self.assertEqual(self.machine.balance, 0)
+
+
+
+
+
+
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
         VendingMachine._instance = None
