@@ -13,6 +13,39 @@ from vending_models import Item, Coin
 from vending_states import HasMoneyState, DispensingState
 from vending_models import Item, Coin, Note
 
+
+class TestBenchmark6(unittest.TestCase):
+    def setUp(self):
+        VendingMachine._instance = None
+        self.machine = VendingMachine.get_instance()
+        self.machine.inventory.add_item(Item("Candy", 200, "C1"), 10)
+        self.machine.set_state(IdleState())
+
+    def test_context_delegation(self):
+        # Now we call directly on the machine, not machine.current_state
+        self.machine.select_item("C1")
+        self.assertEqual(self.machine.selected_item_code, "C1")
+        self.assertIsInstance(self.machine.current_state, ItemSelectedState)
+
+    def test_concurrent_coin_insertion(self):
+        self.machine.select_item("C1")
+        
+        # 100 threads inserting 1 dime (10 cents) each simultaneously
+        def insert_dime():
+            self.machine.insert_coin(Coin.DIME)
+            
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(insert_dime) for _ in range(100)]
+            concurrent.futures.wait(futures)
+            
+        # If thread-safe, balance must be exactly 1000 (100 * 10)
+        self.assertEqual(self.machine.balance, 1000)
+        
+        # Dispense should now succeed since 1000 >= 200
+        product, change = self.machine.dispense()
+        self.assertEqual(product, "Candy")
+        self.assertEqual(change, 800)
+
 class TestBenchmark5(unittest.TestCase):
     def setUp(self):
         VendingMachine._instance = None

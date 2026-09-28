@@ -2,6 +2,7 @@ from __future__ import annotations
 from inventory import Inventory
 import threading
 from typing import TYPE_CHECKING
+from vending_models import Coin, Note
 
 if TYPE_CHECKING:
     from vending_states import VendingMachineState
@@ -18,6 +19,7 @@ class VendingMachine:
         self.current_state = None
         self.balance = 0
         self.selected_item_code = None
+        self._transaction_lock = threading.Lock()
         
     @classmethod
     def get_instance(cls):
@@ -28,7 +30,28 @@ class VendingMachine:
                 cls._instance = VendingMachine()
                 return cls._instance
             return cls._instance
-        
+    
+    def select_item(self, code: str):
+        with self._transaction_lock:
+            self.current_state.select_item(code, self) 
+    
+    def insert_coin(self, coin: Coin):
+        with self._transaction_lock:
+            self.current_state.insert_coin(coin, self)
+    
+    def insert_note(self, note: Note):
+        with self._transaction_lock:
+            self.current_state.insert_note(note, self)
+    
+    def dispense(self):
+        with self._transaction_lock:
+            return self.current_state.dispense(self)
+
+    def refund(self):
+        with self._transaction_lock:
+            return self.current_state.refund(self)
+     
+    
     def reset(self):
         self.balance = 0
         self.selected_item_code = None
