@@ -6,6 +6,50 @@ from elevator_models import Direction
 from dispatch_strategy import NearestElevatorStrategy
 from elevator_models import Request, RequestSource, Direction
 
+from elevator_system import ElevatorSystem
+
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        self.system = ElevatorSystem()
+
+    def test_initialization(self):
+        self.assertEqual(len(self.system.elevators), 3)
+        self.assertIsNotNone(self.system.selection_strategy)
+
+    def test_invalid_floor_requests(self):
+        self.assertFalse(self.system.request_elevator(10, Direction.UP))
+        self.assertFalse(self.system.request_elevator(-1, Direction.DOWN))
+        
+        # Valid elevator ID, but invalid target floor
+        self.assertFalse(self.system.select_floor(1, 15))
+
+    def test_request_elevator_dispatch(self):
+        # Move elevator 2 to floor 5
+        self.system.elevators[2].current_floor = 5
+        
+        # Request from floor 4
+        success = self.system.request_elevator(4, Direction.UP)
+        self.assertTrue(success)
+        
+        # Elevator 2 should have intercepted this request
+        self.assertIn(4, self.system.elevators[2].down_stops)
+        self.assertEqual(self.system.elevators[2].direction, Direction.DOWN)
+
+    def test_select_floor_internal(self):
+        success = self.system.select_floor(1, 7)
+        self.assertTrue(success)
+        self.assertIn(7, self.system.elevators[1].up_stops)
+
+    def test_system_step_advances_all(self):
+        self.system.select_floor(1, 3) # E1 moving UP to 3
+        self.system.elevators[2].current_floor = 5
+        self.system.select_floor(2, 2) # E2 moving DOWN to 2
+        
+        self.system.step()
+        
+        self.assertEqual(self.system.elevators[1].current_floor, 1)
+        self.assertEqual(self.system.elevators[2].current_floor, 4)
+        self.assertEqual(self.system.elevators[3].current_floor, 0) # E3 remains IDLE
 class TestBenchmark3(unittest.TestCase):
     def setUp(self):
         self.e1 = Elevator(id=1, current_floor=0)
