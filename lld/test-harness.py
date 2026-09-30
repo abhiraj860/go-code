@@ -7,7 +7,43 @@ from dispatch_strategy import NearestElevatorStrategy
 from elevator_models import Request, RequestSource, Direction
 
 from elevator_system import ElevatorSystem
+import concurrent.futures
 
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        self.system = ElevatorSystem()
+
+    def test_concurrent_rush_hour(self):
+        def simulate_rush_hour_user():
+            # User hits the hall call button at floor 0
+            self.system.request_elevator(0, Direction.UP)
+            # User gets into elevator 1 and selects floor 8
+            self.system.select_floor(1, 8)
+            # User gets into elevator 2 and selects floor 5
+            self.system.select_floor(2, 5)
+
+        # Fire 100 simultaneous requests
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(simulate_rush_hour_user) for _ in range(100)]
+            concurrent.futures.wait(futures)
+
+        # If thread-safe, no sets should be corrupted and stops should be registered
+        self.assertIn(8, self.system.elevators[1].up_stops)
+        self.assertIn(5, self.system.elevators[2].up_stops)
+        
+        # Simulate 10 time ticks concurrently with another batch of requests
+        def simulate_time():
+            self.system.step()
+            
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            step_futures = [executor.submit(simulate_time) for _ in range(10)]
+            concurrent.futures.wait(step_futures)
+
+        # Elevators should have moved without crashing from Race Conditions
+        self.assertGreater(self.system.elevators[1].current_floor, 0)
+        self.assertGreater(self.system.elevators[2].current_floor, 0)
+        
+        
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
         self.system = ElevatorSystem()
