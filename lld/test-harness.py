@@ -3,6 +3,47 @@ from elevator_models import Direction, RequestSource, Request
 from elevator import Elevator
 from elevator_models import Direction
 
+from dispatch_strategy import NearestElevatorStrategy
+from elevator_models import Request, RequestSource, Direction
+
+class TestBenchmark3(unittest.TestCase):
+    def setUp(self):
+        self.e1 = Elevator(id=1, current_floor=0)
+        self.e2 = Elevator(id=2, current_floor=5)
+        self.e3 = Elevator(id=3, current_floor=9)
+        self.elevators = [self.e1, self.e2, self.e3]
+        self.strategy = NearestElevatorStrategy()
+
+    def test_select_nearest_elevator(self):
+        # Request from floor 4 -> Elevator 2 (at floor 5) is closest
+        req = Request(source_floor=4, target_floor=1, request_source=RequestSource.EXTERNAL, direction=Direction.DOWN)
+        selected = self.strategy.select_elevator(self.elevators, req)
+        self.assertEqual(selected.id, 2)
+
+        # Request from floor 8 -> Elevator 3 (at floor 9) is closest
+        req2 = Request(source_floor=8, target_floor=2, request_source=RequestSource.EXTERNAL, direction=Direction.DOWN)
+        selected2 = self.strategy.select_elevator(self.elevators, req2)
+        self.assertEqual(selected2.id, 3)
+
+    def test_ignores_full_elevators(self):
+        # Fill up elevator 2
+        self.e2.passengers = 10
+        
+        # Request from floor 4. Normally e2 (at 5) is closest, but it's full.
+        # e1 (at 0, distance 4) should be chosen over e3 (at 9, distance 5).
+        req = Request(source_floor=4, target_floor=1, request_source=RequestSource.EXTERNAL, direction=Direction.DOWN)
+        selected = self.strategy.select_elevator(self.elevators, req)
+        self.assertEqual(selected.id, 1)
+
+    def test_returns_none_if_all_full(self):
+        for e in self.elevators:
+            e.passengers = 10
+            
+        req = Request(source_floor=4, target_floor=1, request_source=RequestSource.EXTERNAL, direction=Direction.DOWN)
+        selected = self.strategy.select_elevator(self.elevators, req)
+        self.assertIsNone(selected)
+
+
 
 
 class TestBenchmark2(unittest.TestCase):
