@@ -10,6 +10,43 @@ from chess_game import Player, ChessGame
 from chess_pieces import Rook
 from chess_models import Color, Move
 
+from chess_pieces import King, Rook
+
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        self.board = Board()
+        self.white_king = King(Color.WHITE)
+        self.black_rook = Rook(Color.BLACK)
+        
+        self.board.setPiece(0, 0, self.white_king)
+        self.board.setPiece(7, 7, self.black_rook)
+
+    def test_is_king_in_check(self):
+        # Move rook to the same row as the King
+        self.board.setPiece(0, 7, self.black_rook)
+        self.board.setPiece(7, 7, None)
+        
+        # Black Rook at 0,7 can attack White King at 0,0
+        self.assertTrue(self.board.isKingInCheck(Color.WHITE))
+
+    def test_cannot_move_into_check(self):
+        # Move rook to file 1
+        self.board.setPiece(7, 1, self.black_rook)
+        self.board.setPiece(7, 7, None)
+        
+        start = self.board.getCell(0, 0)
+        end = self.board.getCell(0, 1) # Moving into the Rook's line of fire
+        move = Move(start, end)
+        
+        # The move should be rejected
+        success = self.board.movePiece(move)
+        self.assertFalse(success)
+        
+        # The board state must be rolled back to original
+        self.assertEqual(self.board.getCell(0, 0).getPiece(), self.white_king)
+        self.assertFalse(self.board.getCell(0, 1).isOccupied())
+
+
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
         self.game = ChessGame("Alice", "Bob")
