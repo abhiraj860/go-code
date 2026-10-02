@@ -6,6 +6,56 @@ from chess_board import Board
 from chess_models import Move, Color
 from chess_pieces import Rook, Pawn
 
+from chess_game import Player, ChessGame
+from chess_pieces import Rook
+from chess_models import Color, Move
+
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        self.game = ChessGame("Alice", "Bob")
+        # Manually place pieces for testing turn logic
+        self.white_rook = Rook(Color.WHITE)
+        self.black_rook = Rook(Color.BLACK)
+        self.game.board.setPiece(0, 0, self.white_rook)
+        self.game.board.setPiece(7, 7, self.black_rook)
+
+    def test_game_initialization(self):
+        self.assertEqual(self.game.whitePlayer.getName(), "Alice")
+        self.assertEqual(self.game.blackPlayer.getName(), "Bob")
+        self.assertEqual(self.game.currentPlayer, self.game.whitePlayer)
+
+    def test_wrong_turn_fails(self):
+        start = self.game.board.getCell(7, 7)
+        end = self.game.board.getCell(7, 0)
+        move = Move(start, end)
+        
+        # Bob tries to move Black Rook on Alice's (White's) turn
+        success = self.game.getPlayerMove(self.game.blackPlayer, move)
+        self.assertFalse(success)
+        self.assertEqual(self.game.currentPlayer, self.game.whitePlayer)
+
+    def test_wrong_piece_fails(self):
+        start = self.game.board.getCell(7, 7)
+        end = self.game.board.getCell(7, 0)
+        move = Move(start, end)
+        
+        # Alice tries to move Black Rook on her turn
+        success = self.game.getPlayerMove(self.game.whitePlayer, move)
+        self.assertFalse(success)
+        self.assertEqual(self.game.currentPlayer, self.game.whitePlayer)
+
+    def test_successful_move_switches_turn(self):
+        start = self.game.board.getCell(0, 0)
+        end = self.game.board.getCell(0, 7)
+        move = Move(start, end)
+        
+        # Alice moves White Rook legally
+        success = self.game.getPlayerMove(self.game.whitePlayer, move)
+        self.assertTrue(success)
+        self.assertEqual(self.game.currentPlayer, self.game.blackPlayer)
+
+
+
 class TestBenchmark3(unittest.TestCase):
     def setUp(self):
         self.board = Board()
