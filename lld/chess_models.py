@@ -10,10 +10,12 @@ class Color(Enum):
 class Piece(ABC):
     def __init__(self, color: Color):
         self.color = color
+        
     def getColor(self):
         return self.color
+    
     @abstractmethod
-    def canMove(self, board, start, end):
+    def canMove(self, board, start: Cell, end: Cell):
         pass
     
     
