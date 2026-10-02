@@ -2,7 +2,66 @@ import unittest
 from chess_models import Color, InvalidMoveException, Cell, Move, Piece
 from chess_models import Color, Cell
 from chess_pieces import King, Knight, Rook, Pawn
+from chess_board import Board
+from chess_models import Move, Color
+from chess_pieces import Rook, Pawn
 
+class TestBenchmark3(unittest.TestCase):
+    def setUp(self):
+        self.board = Board()
+
+    def test_board_initialization(self):
+        # Check grid boundaries
+        cell = self.board.getCell(0, 0)
+        self.assertEqual(cell.getRow(), 0)
+        self.assertEqual(cell.getCol(), 0)
+        
+        cell_top_right = self.board.getCell(7, 7)
+        self.assertEqual(cell_top_right.getRow(), 7)
+        self.assertEqual(cell_top_right.getCol(), 7)
+        
+        # Out of bounds
+        with self.assertRaises(Exception):
+            self.board.getCell(8, 0)
+
+    def test_set_and_get_piece(self):
+        rook = Rook(Color.WHITE)
+        self.board.setPiece(0, 0, rook)
+        
+        self.assertEqual(self.board.getPiece(0, 0), rook)
+        self.assertTrue(self.board.getCell(0, 0).isOccupied())
+
+    def test_move_piece_success(self):
+        rook = Rook(Color.WHITE)
+        self.board.setPiece(0, 0, rook)
+        
+        start_cell = self.board.getCell(0, 0)
+        end_cell = self.board.getCell(0, 5)
+        move = Move(start_cell, end_cell)
+        
+        success = self.board.movePiece(move)
+        
+        self.assertTrue(success)
+        self.assertFalse(start_cell.isOccupied())
+        self.assertEqual(end_cell.getPiece(), rook)
+
+    def test_move_piece_failure(self):
+        pawn = Pawn(Color.WHITE)
+        self.board.setPiece(1, 1, pawn)
+        
+        start_cell = self.board.getCell(1, 1)
+        # Pawns cannot move backwards
+        end_cell = self.board.getCell(0, 1) 
+        move = Move(start_cell, end_cell)
+        
+        success = self.board.movePiece(move)
+        
+        self.assertFalse(success)
+        # Piece should remain in original spot
+        self.assertEqual(start_cell.getPiece(), pawn)
+        self.assertFalse(end_cell.isOccupied())
+        
+        
 class DummyBoard:
     # We will pass this as a mock board for now
     pass
