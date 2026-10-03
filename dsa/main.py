@@ -22,6 +22,16 @@ def printNode(head):
         curr = curr.next
     return
 
+def reverse(head):
+    prev = None
+    curr = head
+    while curr:
+        temp = curr.next
+        curr.next = prev
+        prev = curr
+        curr = temp
+    return prev
+
 def deleteNode(head: ListNode, value):
     if head.val == value:
         return head.next
@@ -34,7 +44,8 @@ def deleteNode(head: ListNode, value):
     prev.next = curr.next
     return head
 printNode(head)
-print("After Deleting")
-p = deleteNode(head, 5)
+print("After reversing")
+p = reverse(head)
+# p = deleteNode(head, 5)
 printNode(p)
         
