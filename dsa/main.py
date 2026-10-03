@@ -1,51 +1,49 @@
 class ListNode:
     def __init__(self, val = 0, next = None):
         self.val = val
-        self.next = None
+        self.next = next
 
-first = ListNode(1)
-second = ListNode(2)
-third = ListNode(3)
-fourth = ListNode(4)
-fifth = ListNode(5)
+l1 = ListNode(1)
+l1.next = ListNode(4)
+l1.next.next = ListNode(6)
 
-head = first
-first.next = second
-second.next = third
-third.next = fourth
-fourth.next = fifth
 
-def printNode(head):
+l2 = ListNode(2)
+l2.next = ListNode(3)
+
+def printList(head):
     curr = head
     while curr:
-        print(curr.val)
+        print(curr.val, end=" ")
         curr = curr.next
-    return
+    print()
 
-def reverse(head):
-    prev = None
-    curr = head
-    while curr:
-        temp = curr.next
-        curr.next = prev
-        prev = curr
-        curr = temp
-    return prev
-
-def deleteNode(head: ListNode, value):
-    if head.val == value:
-        return head.next
-    prev, curr = None, head
-    while curr.val != value:
-        prev = curr
+def mergelist(l1: ListNode, l2: ListNode):        
+    if l1 is None:
+        return l2
+    if l2 is None:
+        return l1
+    curr = None
+    if l1.val < l2.val:
+        curr = l1
+        l1 = l1.next
+    else:
+        curr = l2
+        l2 = l2.next
+    head = curr
+    while l1 and l2:
+        if l1.val < l2.val:
+            curr.next = l1
+            l1 = l1.next
+        else:
+            curr.next = l2
+            l2 = l2.next
         curr = curr.next
-    if curr == None:
-        return head
-    prev.next = curr.next
+    curr.next = l1 or l2
     return head
-printNode(head)
-print("After reversing")
-p = reverse(head)
-# p = deleteNode(head, 5)
-printNode(p)
-        
+
+printList(l1)
+printList(l2)
+head = mergelist(l1, l2)
+printList(head)
+
