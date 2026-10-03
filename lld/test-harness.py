@@ -5,6 +5,55 @@ import math
 from unittest.mock import patch
 from token_bucket import TokenBucketLimiter
 
+from sliding_window_log import SlidingWindowLogLimiter
+
+class TestBenchmark3(unittest.TestCase):
+    def setUp(self):
+        # 3 requests allowed per 60,000 ms (1 minute)
+        self.limiter = SlidingWindowLogLimiter(max_requests=3, window_ms=60000)
+
+    @patch('time.time')
+    def test_allow_within_limit_and_deny(self, mock_time):
+        # t = 10,000 ms (10 sec)
+        mock_time.return_value = 10.0
+        
+        for i in range(3):
+            result = self.limiter.allow("user1")
+            self.assertTrue(result.is_allowed())
+            self.assertEqual(result.get_remaining(), 2 - i)
+
+        # 4th request in the same window should be denied
+        result = self.limiter.allow("user1")
+        self.assertFalse(result.is_allowed())
+        self.assertEqual(result.get_remaining(), 0)
+        
+        # The oldest request was at 10,000ms. Window is 60,000ms. 
+        # It expires at 70,000ms. Current time is 10,000ms.
+        # Retry after = 60,000ms.
+        self.assertEqual(result.get_retry_after_ms(), 60000)
+
+    # @patch('time.time')
+    # def test_sliding_window_cleanup(self, mock_time):
+    #     # Make 3 requests at t=0
+    #     mock_time.return_value = 0.0
+    #     for _ in range(3):
+    #         self.limiter.allow("user2")
+            
+    #     # Attempt at t=30s (denied)
+    #     mock_time.return_value = 30.0
+    #     result = self.limiter.allow("user2")
+    #     self.assertFalse(result.is_allowed())
+    #     # Oldest expires at 60,000ms. Current time is 30,000ms. Retry in 30,000ms.
+    #     self.assertEqual(result.get_retry_after_ms(), 30000)
+
+    #     # Attempt at t=65s (allowed, since the first 3 requests are now outside the 60s window)
+    #     mock_time.return_value = 65.0
+    #     result = self.limiter.allow("user2")
+    #     self.assertTrue(result.is_allowed())
+    #     self.assertEqual(result.get_remaining(), 2)
+
+
+
 class TestBenchmark2(unittest.TestCase):
     def setUp(self):
         self.limiter = TokenBucketLimiter(capacity=10, refill_rate_per_second=1)
