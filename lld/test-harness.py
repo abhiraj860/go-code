@@ -11,6 +11,62 @@ from limiter_factory import LimiterFactory
 from token_bucket import TokenBucketLimiter
 from sliding_window_log import SlidingWindowLogLimiter
 
+from rate_limiter import RateLimiter
+
+class TestBenchmark5(unittest.TestCase):
+    def setUp(self):
+        configs = [
+            {
+                "endpoint": "/search",
+                "algorithm": "TokenBucket",
+                "algoConfig": {"capacity": 5, "refillRatePerSecond": 1}
+            },
+            {
+                "endpoint": "/login",
+                "algorithm": "SlidingWindowLog",
+                "algoConfig": {"maxRequests": 3, "windowMs": 60000}
+            }
+        ]
+        default_config = {
+            "algorithm": "TokenBucket",
+            "algoConfig": {"capacity": 10, "refillRatePerSecond": 2}
+        }
+        self.orchestrator = RateLimiter(configs, default_config)
+
+    @patch('time.time')
+    def test_routing_to_specific_endpoints(self, mock_time):
+        mock_time.return_value = 0.0
+        
+        # /search uses TokenBucket (capacity 5)
+        for _ in range(5):
+            res = self.orchestrator.allow("user_A", "/search")
+            self.assertTrue(res.is_allowed())
+        
+        res_fail = self.orchestrator.allow("user_A", "/search")
+        self.assertFalse(res_fail.is_allowed())
+
+        # /login uses SlidingWindowLog (max 3)
+        for _ in range(3):
+            res2 = self.orchestrator.allow("user_A", "/login")
+            self.assertTrue(res2.is_allowed())
+            
+        res2_fail = self.orchestrator.allow("user_A", "/login")
+        self.assertFalse(res2_fail.is_allowed())
+
+    @patch('time.time')
+    def test_fallback_to_default(self, mock_time):
+        mock_time.return_value = 0.0
+        
+        # /unknown_endpoint is not configured, should fall back to default TokenBucket (capacity 10)
+        for _ in range(10):
+            res = self.orchestrator.allow("user_B", "/unknown_endpoint")
+            self.assertTrue(res.is_allowed())
+            
+        res_fail = self.orchestrator.allow("user_B", "/unknown_endpoint")
+        self.assertFalse(res_fail.is_allowed())
+
+
+
 class TestBenchmark4(unittest.TestCase):
     def setUp(self):
         self.factory = LimiterFactory()
