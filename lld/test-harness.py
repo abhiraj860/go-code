@@ -7,6 +7,54 @@ from token_bucket import TokenBucketLimiter
 
 from sliding_window_log import SlidingWindowLogLimiter
 
+from limiter_factory import LimiterFactory
+from token_bucket import TokenBucketLimiter
+from sliding_window_log import SlidingWindowLogLimiter
+
+class TestBenchmark4(unittest.TestCase):
+    def setUp(self):
+        self.factory = LimiterFactory()
+
+    def test_create_token_bucket(self):
+        config = {
+            "endpoint": "/search",
+            "algorithm": "TokenBucket",
+            "algoConfig": {
+                "capacity": 100,
+                "refillRatePerSecond": 10
+            }
+        }
+        limiter = self.factory.create(config)
+        self.assertIsInstance(limiter, TokenBucketLimiter)
+        self.assertEqual(limiter.capacity, 100)
+        self.assertEqual(limiter.refill_rate_per_second, 10)
+
+    def test_create_sliding_window_log(self):
+        config = {
+            "endpoint": "/upload",
+            "algorithm": "SlidingWindowLog",
+            "algoConfig": {
+                "maxRequests": 5,
+                "windowMs": 10000
+            }
+        }
+        limiter = self.factory.create(config)
+        self.assertIsInstance(limiter, SlidingWindowLogLimiter)
+        self.assertEqual(limiter.max_request, 5) # Note: match this to your actual class attribute name
+        self.assertEqual(limiter.window_ms, 10000)
+
+    def test_unknown_algorithm_raises_error(self):
+        config = {
+            "endpoint": "/health",
+            "algorithm": "QuantumBucket",
+            "algoConfig": {}
+        }
+        with self.assertRaises(ValueError):
+            self.factory.create(config)
+
+
+
+
 class TestBenchmark3(unittest.TestCase):
     def setUp(self):
         # 3 requests allowed per 60,000 ms (1 minute)
