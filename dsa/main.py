@@ -1,49 +1,16 @@
-class ListNode:
-    def __init__(self, val = 0, next = None):
-        self.val = val
-        self.next = next
+nums, target = [-1,0,3,5,9,12], 12
 
-l1 = ListNode(1)
-l1.next = ListNode(4)
-l1.next.next = ListNode(6)
-
-
-l2 = ListNode(2)
-l2.next = ListNode(3)
-
-def printList(head):
-    curr = head
-    while curr:
-        print(curr.val, end=" ")
-        curr = curr.next
-    print()
-
-def mergelist(l1: ListNode, l2: ListNode):        
-    if l1 is None:
-        return l2
-    if l2 is None:
-        return l1
-    curr = None
-    if l1.val < l2.val:
-        curr = l1
-        l1 = l1.next
-    else:
-        curr = l2
-        l2 = l2.next
-    head = curr
-    while l1 and l2:
-        if l1.val < l2.val:
-            curr.next = l1
-            l1 = l1.next
+def binary_search(nums, target):
+    start = 0
+    end = len(nums) - 1
+    while start <= end:
+        mid = (start + end) // 2
+        if nums[mid] == target:
+            return mid
+        elif nums[mid] < target:
+            start = mid + 1
         else:
-            curr.next = l2
-            l2 = l2.next
-        curr = curr.next
-    curr.next = l1 or l2
-    return head
+            end = mid - 1
+    return -1
 
-printList(l1)
-printList(l2)
-head = mergelist(l1, l2)
-printList(head)
-
+print(binary_search(nums, target))
