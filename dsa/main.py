@@ -1,13 +1,14 @@
 import heapq
 
-nums = [9, 3, 7, 1, -2, 6, 8]
+nums = [5, 3, 2, 1, 4]
+k = 2
 
-heap = nums[:3]
-heapq.heapify(heap)
+def kthLargest(nums, k):
+    arr = nums[:k] 
+    heapq.heapify(arr)
+    for v in nums[k:]:
+        heapq.heappushpop(arr, v)   
+        
+    return arr[0]
 
-for i in nums[3:]:
-    heapq.heappushpop(heap, i)
-
-print(heap)        
-
-
+print(kthLargest(nums, k))
