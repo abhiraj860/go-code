@@ -30,7 +30,7 @@ class DoublyLinkedList:
         self.addFirst(node)
         return
     
-    def removeLast(self):
+    def removeLast(self)->Node:
         node = self.tail.prev
         node.prev.next = node.next
         self.tail.prev = node.prev

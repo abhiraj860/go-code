@@ -3,6 +3,43 @@ from lru_models import Node, DoublyLinkedList
 
 from lru_cache import LRUCache
 
+import threading
+from lru_cache import LRUCache
+
+class TestBenchmark3(unittest.TestCase):
+    def test_thread_safety(self):
+        cache = LRUCache(100)
+        
+        def worker(start_key, end_key):
+            for i in range(start_key, end_key):
+                cache.put(i, i * 10)
+                cache.get(i)
+                
+        threads = []
+        # Spawn 10 threads, each performing 100 insertions and 100 reads
+        for i in range(10):
+            t = threading.Thread(target=worker, args=(i * 100, (i + 1) * 100))
+            threads.append(t)
+            t.start()
+            
+        for t in threads:
+            t.join()
+            
+        # The capacity is 100, so the map length must never exceed 100
+        self.assertLessEqual(len(cache.map), 100)
+        
+        # Traverse the linked list to ensure pointers were not corrupted by race conditions
+        current = cache.dll.head
+        node_count = 0
+        while current is not None:
+            node_count += 1
+            current = current.next
+            
+        # Total nodes should equal the map length plus the dummy head and dummy tail
+        self.assertEqual(node_count, len(cache.map) + 2)
+
+
+
 class TestBenchmark2(unittest.TestCase):
     def test_lru_cache_behavior(self):
         cache = LRUCache(2)
@@ -37,9 +74,6 @@ class TestBenchmark2(unittest.TestCase):
         
         self.assertEqual(cache.get(1), 100)
         self.assertEqual(cache.get(2), -1)
-
-
-
 class TestBenchmark1(unittest.TestCase):
     def setUp(self):
         self.dll = DoublyLinkedList()
