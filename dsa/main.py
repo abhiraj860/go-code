@@ -1,9 +1,21 @@
 n = 4
 edges = [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2]]
 
-adj_List = {i:[] for i in range(n)}
+adj_List = {
+    "1": ["2", "4"],
+    "2": ["1", "3"],
+    "3": ["2", "4"],
+    "4": ["1", "3", "5"],
+    "5": ["4"]
+}
 
-for edge in edges:
-    adj_List[edge[0]].append(edge[1])
-    adj_List[edge[1]].append(edge[0])
-print(adj_List)
+    
+visited = set()
+def dfs(node):
+    print(node)
+    visited.add(node)
+    for nbr in adj_List[node]:
+        if nbr not in visited:
+            dfs(nbr)
+    
+dfs("1")
