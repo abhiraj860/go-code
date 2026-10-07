@@ -1,32 +1,17 @@
-class IntGraphNode:
-    def __init__(self, value = 0, neighbours = None):
-        self.value = value
-        self.neighbours = neighbours if neighbours is not None else []
-        
-n1 = IntGraphNode(1)
-n2 = IntGraphNode(2)
-n3 = IntGraphNode(3)
-n4 = IntGraphNode(4)
-
-n1.neighbours = [n2, n4]
-n2.neighbours = [n1, n3]
-n3.neighbours = [n2, n4]
-n4.neighbours = [n1, n3]
-
-node = n1
-
-adj_list = {}
-
-def dfs(node: IntGraphNode):
-   if node is None:
-       return
-   if node.value in adj_list:
-       return
-   adj_list[node.value] = []
-   for nbrs in node.neighbours:
-        adj_list[node.value].append(nbrs.value)
-        dfs(nbrs)
-dfs(node)
-
-print(adj_list)
-
+matrix = [[0,1,0], [1, 0, 1], [0, 1, 0]]
+def dfs(matrix):
+    directions = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    visited = set()
+    def helper(row, col):
+        if (row, col) in visited:
+            return
+        visited.add((row, col))
+        print(row, col)
+        for dir in directions:
+            nx = row + dir[0]
+            ny = col + dir[1]
+            if nx >= 0 and ny >= 0 and nx < len(matrix) and ny < len(matrix[0]):
+                helper(nx, ny)
+    
+    helper(0, 0)
+dfs(matrix)
