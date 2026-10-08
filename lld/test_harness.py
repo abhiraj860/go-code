@@ -4,6 +4,77 @@ from domain_models import (
     CreditCardPaymentStrategy, UPIPaymentStrategy, PaymentStrategy
 )
 
+from domain_models import BaseProduct, ProductCategory
+
+from cart_and_users import (
+    CartItem, ShoppingCart, Address, Account, 
+    OrderObserver, Subject, Customer
+)
+
+class TestPhase2_Comprehensive(unittest.TestCase):
+    def setUp(self):
+        self.mouse = BaseProduct("P1", "Mouse", 25.0, "Wireless", ProductCategory.ELECTRONICS)
+        self.keyboard = BaseProduct("P2", "Keyboard", 75.0, "Mechanical", ProductCategory.ELECTRONICS)
+        
+    def test_cart_item_mechanics(self):
+        item = CartItem(self.mouse, 2)
+        self.assertEqual(item.getPrice(), 50.0)
+        
+        item.incrementQuantity(3)
+        self.assertEqual(item.quantity, 5)
+        self.assertEqual(item.getPrice(), 125.0)
+
+    def test_shopping_cart_exhaustive(self):
+        cart = ShoppingCart()
+        
+        # Test Adding
+        cart.addItem(self.mouse, 2)
+        cart.addItem(self.keyboard, 1)
+        self.assertEqual(len(cart.getItems()), 2)
+        self.assertEqual(cart.calculateTotal(), 125.0)
+        
+        # Test Incrementing existing item
+        cart.addItem(self.mouse, 2)
+        self.assertEqual(cart.getItems()["P1"].quantity, 4)
+        self.assertEqual(cart.calculateTotal(), 175.0)
+        
+        # Test Removing
+        cart.removeItem("P2")
+        self.assertNotIn("P2", cart.getItems())
+        self.assertEqual(cart.calculateTotal(), 100.0)
+        
+        # Test Clearing
+        cart.clearCart()
+        self.assertEqual(len(cart.getItems()), 0)
+        self.assertEqual(cart.calculateTotal(), 0.0)
+
+    def test_user_composition_and_observer(self):
+        # Ensure Interfaces are abstract
+        with self.assertRaises(TypeError):
+            OrderObserver()
+        with self.assertRaises(TypeError):
+            Subject()
+
+        # Build Customer dependencies
+        address = Address("123 Main St", "Tech City", "TS", "10001")
+        account = Account("dev_user", "secure123")
+        
+        # We can directly access the instantiated ShoppingCart inside the account
+        self.assertIsInstance(account.cart, ShoppingCart)
+        
+        customer = Customer("C1", "Alice", "alice@example.com", account, address)
+        
+        self.assertEqual(customer.shippingAddress.city, "Tech City")
+        
+        # Test Address Update
+        new_address = Address("456 Broad St", "New City", "NS", "20002")
+        customer.updateShippingAddress(new_address)
+        self.assertEqual(customer.shippingAddress.street, "456 Broad St")
+        
+        # Test Observer implementation
+        notification = customer.update("DummyOrderObject")
+        self.assertEqual(notification, "Customer Alice notified of order update.")
+
 class TestPhase1_Comprehensive(unittest.TestCase):
     def test_base_product_exhaustive(self):
         prod = BaseProduct("P1", "Laptop", 1000.0, "Gaming Laptop", ProductCategory.ELECTRONICS)
