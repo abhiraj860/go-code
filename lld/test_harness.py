@@ -1,78 +1,46 @@
 import unittest
-from shopping_domain import OrderStatus, Product, Payment, CreditCardPayment
-from shopping_domain import Product
+from domain_models import (
+    ProductCategory, Product, BaseProduct, ProductDecorator, GiftWrapDecorator, 
+    CreditCardPaymentStrategy, UPIPaymentStrategy, PaymentStrategy
+)
 
-from shopping_cart import OrderItem, ShoppingCart
+class TestPhase1_Comprehensive(unittest.TestCase):
+    def test_base_product_exhaustive(self):
+        prod = BaseProduct("P1", "Laptop", 1000.0, "Gaming Laptop", ProductCategory.ELECTRONICS)
+        self.assertEqual(prod.getId(), "P1")
+        self.assertEqual(prod.getName(), "Laptop")
+        self.assertEqual(prod.getPrice(), 1000.0)
+        self.assertEqual(prod.getDescription(), "Gaming Laptop")
+        self.assertEqual(prod.getCategory(), ProductCategory.ELECTRONICS)
 
-class TestBenchmark2(unittest.TestCase):
-    def setUp(self):
-        self.mouse = Product("P2", "Mouse", "Wireless Mouse", 25.00, 50)
-        self.keyboard = Product("P3", "Keyboard", "Mechanical Keyboard", 75.00, 30)
-        self.cart = ShoppingCart()
-
-    def test_add_and_get_items(self):
-        self.cart.add_item(self.mouse, 2)
-        self.cart.add_item(self.keyboard, 1)
+    def test_product_decorator_full_delegation(self):
+        base_prod = BaseProduct("P2", "Book", 20.0, "Novel", ProductCategory.BOOKS)
+        wrapped_prod = GiftWrapDecorator(base_prod)
         
-        items = self.cart.get_items()
-        self.assertEqual(len(items), 2)
+        # The abstract decorator MUST delegate all these methods down to the base_prod
+        self.assertEqual(wrapped_prod.getId(), "P2")
+        self.assertEqual(wrapped_prod.getName(), "Book")
+        self.assertEqual(wrapped_prod.getDescription(), "Novel")
+        self.assertEqual(wrapped_prod.getCategory(), ProductCategory.BOOKS)
         
-        # Adding an existing item should increment its quantity
-        self.cart.add_item(self.mouse, 3)
-        self.assertEqual(self.cart.items["P2"].quantity, 5)
+        # Only the price should be overridden by the concrete GiftWrapDecorator
+        self.assertEqual(wrapped_prod.getPrice(), 25.0)
 
-    def test_update_and_remove_items(self):
-        self.cart.add_item(self.mouse, 2)
-        self.cart.update_quantity("P2", 10)
-        self.assertEqual(self.cart.items["P2"].quantity, 10)
-        
-        # Updating to 0 or less should remove the item
-        self.cart.update_quantity("P2", 0)
-        self.assertNotIn("P2", self.cart.items)
-
-        self.cart.add_item(self.keyboard, 1)
-        self.cart.remove_item("P3")
-        self.assertNotIn("P3", self.cart.items)
-
-    def test_calculate_total_and_clear(self):
-        self.cart.add_item(self.mouse, 2)       # 2 * 25.00 = 50.00
-        self.cart.add_item(self.keyboard, 1)    # 1 * 75.00 = 75.00
-        
-        self.assertEqual(self.cart.calculate_total(), 125.00)
-        
-        self.cart.clear_cart()
-        self.assertEqual(len(self.cart.get_items()), 0)
-        self.assertEqual(self.cart.calculate_total(), 0.0)
-
-class TestBenchmark1(unittest.TestCase):
-    def test_order_status_enum(self):
-        self.assertEqual(OrderStatus.PENDING.name, "PENDING")
-        self.assertEqual(OrderStatus.DELIVERED.name, "DELIVERED")
-
-    def test_product_availability_and_updates(self):
-        laptop = Product(product_id="P1", name="Laptop", description="High-end laptop", price=1500.00, quantity=10)
-        
-        # Check availability
-        self.assertTrue(laptop.is_available(5))
-        self.assertTrue(laptop.is_available(10))
-        self.assertFalse(laptop.is_available(11))
-        
-        # Update quantity (simulating a purchase)
-        laptop.update_quantity(-5)
-        self.assertEqual(laptop.quantity, 5)
-        self.assertFalse(laptop.is_available(10))
-        
-        # Restock
-        laptop.update_quantity(20)
-        self.assertEqual(laptop.quantity, 25)
-
-    def test_payment_strategy(self):
-        # Ensure Payment is abstract
+    def test_interfaces_are_abstract(self):
+        # Ensure abstract classes cannot be instantiated directly
         with self.assertRaises(TypeError):
-            Payment()
+            Product()
+        with self.assertRaises(TypeError):
+            ProductDecorator(BaseProduct("P", "N", 0, "D", ProductCategory.BOOKS))
+        with self.assertRaises(TypeError):
+            PaymentStrategy()
             
-        cc_payment = CreditCardPayment(card_number="1234-5678-9012-3456")
-        self.assertTrue(cc_payment.process_payment(1500.00))
+    def test_payment_strategies(self):
+        cc_pay = CreditCardPaymentStrategy("1234-5678-9012-3456")
+        self.assertTrue(cc_pay.pay(1025.0))
+        
+        upi_pay = UPIPaymentStrategy("user@upi")
+        self.assertTrue(upi_pay.pay(25.0))
 
 if __name__ == '__main__':
     unittest.main()
