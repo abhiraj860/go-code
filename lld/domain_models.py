@@ -1,104 +1,104 @@
-from enum import enum, auto
-from abc import abc, abstractmethod
+from enum import Enum, auto
+from abc import ABC, abstractmethod
 
-class productcategory(enum):
-    clothing = auto()
-    home_goods = auto()
-    grocery = auto()
-    electronics = auto()
-    books = auto()
+class ProductCategory(Enum):
+    CLOTHING = auto()
+    HOME_GOODS = auto()
+    GROCERY = auto()
+    ELECTRONICS = auto()
+    BOOKS = auto()
     
-class product(abc):
+class Product(ABC):
     @abstractmethod
-    def getid(self)->str:
+    def getId(self)->str:
         pass
     
     @abstractmethod
-    def getname(self)->str:
+    def getName(self)->str:
         pass
     
     @abstractmethod
-    def getprice(self)->float:
+    def getPrice(self)->float:
         pass
     
     @abstractmethod
-    def getdescription(self)->str:
+    def getDescription(self)->str:
         pass
     
     @abstractmethod
-    def getcategory(self)->productcategory:
+    def getCategory(self)->ProductCategory:
         pass
     
-class baseproduct(product):
-    def __init__(self, id: str, name: str, price: float, description: str, category: productcategory):
+class BaseProduct(Product):
+    def __init__(self, id: str, name: str, price: float, description: str, category: ProductCategory):
         self.id = id
         self.name = name
         self. price = price
         self.description = description
         self.category = category
         
-    def getid(self):
+    def getId(self):
         return self.id
     
-    def getname(self):
+    def getName(self):
         return self.name
     
-    def getprice(self):
+    def getPrice(self):
         return self.price
     
-    def getdescription(self):
+    def getDescription(self):
         return self.description
     
-    def getcategory(self):
+    def getCategory(self):
         return self.category
     
     
-class productdecorator(product):
-    def __init__(self, decoratedproduct: product):
-        self.decoratedproduct:product = decoratedproduct
+class ProductDecorator(Product):
+    def __init__(self, decoratedProduct: Product):
+        self.decoratedProduct:Product = decoratedProduct
     
-    def getid(self):
-        return self.decoratedproduct.getid()
+    def getId(self):
+        return self.decoratedProduct.getId()
     
-    def getname(self):
-        return self.decoratedproduct.getname()
+    def getName(self):
+        return self.decoratedProduct.getName()
     
     @abstractmethod
-    def getprice(self):
-        return self.decoratedproduct.getprice()
+    def getPrice(self):
+        return self.decoratedProduct.getPrice()
     
-    def getdescription(self):
-        return self.decoratedproduct.getdescription()
+    def getDescription(self):
+        return self.decoratedProduct.getDescription()
     
-    def getcategory(self):
-        return self.decoratedproduct.getcategory()
+    def getCategory(self):
+        return self.decoratedProduct.getCategory()
         
-class giftwrapdecorator(productdecorator):
-    def __init__(self, product: product, gift_wrap_cost: float = 5.00):
-        self.gift_wrap_cost = gift_wrap_cost
-        super().__init__(decoratedproduct = product)
+class GiftWrapDecorator(ProductDecorator):
+    def __init__(self, product: Product, GIFT_WRAP_COST: float = 5.00):
+        self.GIFT_WRAP_COST = GIFT_WRAP_COST
+        super().__init__(decoratedProduct = product)
     
-    def getprice(self):
-        return super().getprice() + self.gift_wrap_cost
+    def getPrice(self):
+        return super().getPrice() + self.GIFT_WRAP_COST
         
         
-class paymentstrategy(abc):
+class PaymentStrategy(ABC):
     @abstractmethod
     def pay(self, amount:float) -> bool:
-        return true
+        return True
 
-class creditcardpaymentstrategy(paymentstrategy):
-    def __init__(self, cardnumber: str):
-        self.cardnumber = cardnumber
+class CreditCardPaymentStrategy(PaymentStrategy):
+    def __init__(self, cardNumber: str):
+        self.cardNumber = cardNumber
     
     def pay(self, amount: float):
-        return true
+        return True
     
-class upipaymentstrategy(paymentstrategy):
-    def __init__(self, upiid: str):
-        self.upiid = upiid
+class UPIPaymentStrategy(PaymentStrategy):
+    def __init__(self, upiId: str):
+        self.upiId = upiId
     
     def pay(self, amount: float):
-        return true
+        return True
         
     
