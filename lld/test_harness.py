@@ -10,6 +10,69 @@ from cart_and_users import (
     CartItem, ShoppingCart, Address, Account, 
     OrderObserver, Subject, Customer
 )
+from datetime import datetime
+from cart_and_users import Address, Account, Customer
+from shopping_order import (
+    OrderLineItem, OrderStatus, OrderState, PlacedState, 
+    ShippedState, DeliveredState, CancelledState, Order
+)
+
+class TestPhase3_Comprehensive(unittest.TestCase):
+    def setUp(self):
+        self.address = Address("123 Main St", "Tech City", "TS", "10001")
+        self.account = Account("dev_user", "secure123")
+        self.customer = Customer("C1", "Alice", "alice@example.com", self.account, self.address)
+        
+        self.item1 = OrderLineItem("P1", 2, "Laptop", 1000.0)
+        self.item2 = OrderLineItem("P2", 1, "Mouse", 50.0)
+        
+        self.order = Order("O-100", self.customer, [self.item1, self.item2], 2050.0, self.address)
+
+    def test_order_initialization(self):
+        self.assertEqual(self.order.id, "O-100")
+        self.assertEqual(self.order.status, OrderStatus.PLACED)
+        self.assertIsInstance(self.order.currentState, PlacedState)
+        self.assertIsInstance(self.order.orderDate, datetime)
+        self.assertEqual(len(self.order.items), 2)
+
+    def test_valid_state_transitions_and_notifications(self):
+        # We can intercept stdout or just trust the state mutation
+        # Placed -> Shipped
+        self.order.shipOrder()
+        self.assertEqual(self.order.status, OrderStatus.SHIPPED)
+        self.assertIsInstance(self.order.currentState, ShippedState)
+        
+        # Shipped -> Delivered
+        self.order.deliverOrder()
+        self.assertEqual(self.order.status, OrderStatus.DELIVERED)
+        self.assertIsInstance(self.order.currentState, DeliveredState)
+
+    def test_invalid_state_transitions(self):
+        # Cannot deliver an order that is only PLACED
+        with self.assertRaises(Exception):
+            self.order.deliverOrder()
+            
+        # Cancel the order
+        self.order.cancelOrder()
+        self.assertEqual(self.order.status, OrderStatus.CANCELLED)
+        self.assertIsInstance(self.order.currentState, CancelledState)
+        
+        # Cannot ship a cancelled order
+        with self.assertRaises(Exception):
+            self.order.shipOrder()
+
+    def test_observer_wiring(self):
+        # The customer should be automatically added to the observers list
+        self.assertIn(self.customer, self.order.observers)
+        
+        # Removing the observer
+        self.order.removeObserver(self.customer)
+        self.assertNotIn(self.customer, self.order.observers)
+
+
+
+
+
 
 class TestPhase2_Comprehensive(unittest.TestCase):
     def setUp(self):
