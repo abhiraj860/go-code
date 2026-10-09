@@ -17,6 +17,79 @@ from shopping_order import (
     ShippedState, DeliveredState, CancelledState, Order
 )
 
+import uuid
+from domain_models import BaseProduct, ProductCategory, CreditCardPaymentStrategy
+from cart_and_users import ShoppingCart, Address, Account, Customer
+from shopping_order import Order, OrderLineItem, OrderStatus
+from shopping_services import InventoryService, SearchService, PaymentService, OrderService
+
+class TestPhase4_Comprehensive(unittest.TestCase):
+    def setUp(self):
+        self.laptop = BaseProduct("P1", "Laptop", 1000.0, "Gaming", ProductCategory.ELECTRONICS)
+        self.mouse = BaseProduct("P2", "Mouse", 50.0, "Wireless", ProductCategory.ELECTRONICS)
+        self.shirt = BaseProduct("P3", "T-Shirt", 20.0, "Cotton", ProductCategory.CLOTHING)
+        
+        self.address = Address("123 Main St", "Tech City", "TS", "10001")
+        self.account = Account("user1", "pass1")
+        self.customer = Customer("C1", "Alice", "alice@test.com", self.account, self.address)
+
+    def test_inventory_service(self):
+        inv_service = InventoryService()
+        inv_service.addStock(self.laptop, 10)
+        self.assertEqual(inv_service.stock["P1"], 10)
+        
+        item = OrderLineItem("P1", 2, "Laptop", 1000.0)
+        inv_service.updateStockForOrder([item])
+        
+        # 10 - 2 = 8
+        self.assertEqual(inv_service.stock["P1"], 8)
+
+    def test_search_service(self):
+        search_service = SearchService()
+        search_service.addProduct(self.laptop)
+        search_service.addProduct(self.mouse)
+        search_service.addProduct(self.shirt)
+        
+        # Test searchByCategory
+        electronics = search_service.searchByCategory(ProductCategory.ELECTRONICS)
+        self.assertEqual(len(electronics), 2)
+        self.assertIn(self.laptop, electronics)
+        
+        # Test searchByName (case insensitive)
+        mice = search_service.searchByName("mou")
+        self.assertEqual(len(mice), 1)
+        self.assertEqual(mice[0].getId(), "P2")
+
+    def test_payment_service(self):
+        payment_service = PaymentService()
+        cc_strategy = CreditCardPaymentStrategy("1111-2222")
+        result = payment_service.processPayment(cc_strategy, 500.0)
+        self.assertTrue(result)
+
+    def test_order_service(self):
+        inv_service = InventoryService()
+        inv_service.addStock(self.laptop, 5)
+        inv_service.addStock(self.shirt, 10)
+        
+        order_service = OrderService(inv_service)
+        
+        cart = ShoppingCart()
+        cart.addItem(self.laptop, 1)
+        cart.addItem(self.shirt, 2)
+        
+        order = order_service.createOrder(self.customer, cart)
+        
+        # Validate Order created correctly
+        self.assertIsInstance(order, Order)
+        self.assertEqual(len(order.items), 2)
+        self.assertEqual(order.totalAmount, 1040.0) # 1000 + (20 * 2)
+        self.assertEqual(order.customer, self.customer)
+        
+        # Validate Inventory deducted
+        self.assertEqual(inv_service.stock["P1"], 4)
+        self.assertEqual(inv_service.stock["P3"], 8)
+
+
 class TestPhase3_Comprehensive(unittest.TestCase):
     def setUp(self):
         self.address = Address("123 Main St", "Tech City", "TS", "10001")
