@@ -23,6 +23,65 @@ from cart_and_users import ShoppingCart, Address, Account, Customer
 from shopping_order import Order, OrderLineItem, OrderStatus
 from shopping_services import InventoryService, SearchService, PaymentService, OrderService
 
+from domain_models import BaseProduct, ProductCategory, CreditCardPaymentStrategy
+from cart_and_users import Address
+from shopping_system import OnlineShoppingSystem
+
+class TestPhase5_Comprehensive(unittest.TestCase):
+    def setUp(self):
+        # Reset the singleton for clean tests
+        OnlineShoppingSystem._instance = None
+        self.system = OnlineShoppingSystem.getInstance()
+        
+        self.address = Address("123 Main St", "Tech City", "TS", "10001")
+        self.laptop = BaseProduct("P1", "Laptop", 1000.0, "Gaming", ProductCategory.ELECTRONICS)
+        self.mouse = BaseProduct("P2", "Mouse", 50.0, "Wireless", ProductCategory.ELECTRONICS)
+
+    def test_singleton_pattern(self):
+        system2 = OnlineShoppingSystem.getInstance()
+        system3 = OnlineShoppingSystem()
+        self.assertIs(self.system, system2)
+        self.assertIs(self.system, system3)
+
+    def test_end_to_end_shopping_flow(self):
+        # 1. Register Customer
+        customer = self.system.registerCustomer("C1", "Alice", "alice@example.com", self.address)
+        self.assertIn("C1", self.system.customers)
+        
+        # 2. Add Products to System
+        self.system.addProduct(self.laptop, 10)
+        self.system.addProduct(self.mouse, 50)
+        self.assertIn("P1", self.system.products)
+        
+        # 3. Search Product
+        results = self.system.searchProducts("lap")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].getId(), "P1")
+        
+        # 4. Add to Cart
+        self.system.addToCart("C1", "P1", 2)
+        self.system.addToCart("C1", "P2", 1)
+        
+        cart = self.system.getCustomerCart("C1")
+        self.assertEqual(cart.calculateTotal(), 2050.0)
+        
+        # 5. Place Order
+        payment_strategy = CreditCardPaymentStrategy("1111-2222-3333-4444")
+        order = self.system.placeOrder("C1", payment_strategy)
+        
+        # 6. Verify Post-Order State
+        self.assertIn(order.id, self.system.orders)
+        self.assertEqual(order.totalAmount, 2050.0)
+        self.assertEqual(len(cart.getItems()), 0) # Cart should be cleared
+        
+        # Verify Inventory deduction
+        self.assertEqual(self.system.inventoryService.stock["P1"], 8)
+        self.assertEqual(self.system.inventoryService.stock["P2"], 49)
+
+
+
+
+
 class TestPhase4_Comprehensive(unittest.TestCase):
     def setUp(self):
         self.laptop = BaseProduct("P1", "Laptop", 1000.0, "Gaming", ProductCategory.ELECTRONICS)
