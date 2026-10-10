@@ -1,51 +1,41 @@
-from abc import ABC, abstractmethod
+from typing import Dict, Optional
 
-class Coffee(ABC):
-    @abstractmethod
-    def get_description(self):
-        pass
+class HttpRequest:
+    url: str
+    method: str
+    headers: Dict[str, str]
+    body: Optional[str]
 
-    @abstractmethod
-    def get_cost(self):
-        pass
+class HttpRequestBuilder:
+    def __init__(self, url: str):
+        self.url = url
+        self._method = "GET"
+        self.header = {}
+        self._body = None
 
-class Espresso(Coffee):
-    def __init__(self):
-        pass
-    
-    def get_cost(self):
-        return 2.00
+    def method(self, http_method: str) -> 'HttpRequestBuilder':
+        self._method = http_method
+        return self
 
-    def get_description(self):
-        return "Espresso"
-    
-class HouseBlend(Coffee):
-    def __init__(self):
-        pass
-    
-    def get_cost(self):
-        return 1.50
-    
-    def get_description(self):
-        return "House Blend"
-    
-class Milk(Coffee):
-    def __init__(self, coffee: Coffee):
-        self.coffee = coffee
+    def add_header(self, key: str, value: str) -> 'HttpRequestBuilder':
+        self.header[key] = value
+        return self
 
-    def get_cost(self):
-        return self.coffee.get_cost() + 0.50
+    def body(self, payload: str) -> 'HttpRequestBuilder':
+        self._body = payload
+        return self
     
-    def get_description(self):
-        return self.coffee.get_description() + ", Milk"
+    def build(self) -> HttpRequest:
+        if self.url is None:
+            raise ValueError("URL not provided")
+        http_request = HttpRequest()
+        http_request.url = self.url
+        http_request.method = self._method
+        http_request.headers = self.header
+        http_request.body = self._body
+        if self._method == "GET" and self._body is not None:
+            raise ValueError("GET requests cannot have a body")
+        return http_request
+        
+
     
-class Mocha(Coffee):
-    def __init__(self, coffee: Coffee):
-        self.coffee = coffee
-    
-    def get_cost(self):
-        return self.coffee.get_cost() + 0.75
-    
-    def get_description(self):
-        return self.coffee.get_description() + ", Mocha"
-            

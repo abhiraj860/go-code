@@ -1,36 +1,53 @@
-import unittest
-from main import Espresso, HouseBlend, Milk, Mocha
-# ---------------------------------------------------------
-# WRITE YOUR CODE HERE
-# Implement Coffee, Espresso, HouseBlend, Milk, and Mocha
-# ---------------------------------------------------------
+import pytest
+from main import HttpRequest, HttpRequestBuilder
 
+def test_builder_requires_url():
+    with pytest.raises(TypeError):
+        HttpRequestBuilder()
 
+def test_default_state():
+    request = HttpRequestBuilder("https://api.example.com").build()
+    
+    assert isinstance(request, HttpRequest)
+    assert request.url == "https://api.example.com"
+    assert request.method == "GET"
+    assert request.headers == {}
+    assert request.body is None
 
-# ---------------------------------------------------------
-# TEST HARNESS
-# ---------------------------------------------------------
-class TestDecoratorPattern(unittest.TestCase):
-    def test_plain_espresso(self):
-        beverage = Espresso()
-        self.assertEqual(beverage.get_description(), "Espresso")
-        self.assertEqual(beverage.get_cost(), 2.00)
+def test_fluent_chaining_and_population():
+    request = (HttpRequestBuilder("https://api.example.com/users")
+               .method("POST")
+               .add_header("Authorization", "Bearer 12345")
+               .add_header("Content-Type", "application/json")
+               .body('{"name": "Alice"}')
+               .build())
+    
+    assert request.url == "https://api.example.com/users"
+    assert request.method == "POST"
+    assert request.headers == {
+        "Authorization": "Bearer 12345",
+        "Content-Type": "application/json"
+    }
+    assert request.body == '{"name": "Alice"}'
 
-    def test_house_blend_with_milk(self):
-        beverage = HouseBlend()
-        beverage = Milk(beverage)
+def test_header_overwrites_existing_key():
+    request = (HttpRequestBuilder("https://api.example.com")
+               .add_header("Accept", "text/plain")
+               .add_header("Accept", "application/json")
+               .build())
+               
+    assert request.headers == {"Accept": "application/json"}
+
+def test_validation_get_with_body_raises_error():
+    builder = HttpRequestBuilder("https://api.example.com").body('{"query": "test"}')
+    
+    with pytest.raises(ValueError, match="GET requests cannot have a body"):
+        builder.build()
         
-        self.assertEqual(beverage.get_description(), "House Blend, Milk")
-        self.assertEqual(beverage.get_cost(), 2.00) # 1.50 + 0.50
-
-    def test_double_mocha_milk_espresso(self):
-        beverage = Espresso()
-        beverage = Milk(beverage)
-        beverage = Mocha(beverage)
-        beverage = Mocha(beverage)
-        
-        self.assertEqual(beverage.get_description(), "Espresso, Milk, Mocha, Mocha")
-        self.assertEqual(beverage.get_cost(), 4.00) # 2.00 + 0.50 + 0.75 + 0.75
-
-if __name__ == '__main__':
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+def test_validation_explicit_get_with_body_raises_error():
+    builder = (HttpRequestBuilder("https://api.example.com")
+               .method("GET")
+               .body('{"query": "test"}'))
+               
+    with pytest.raises(ValueError, match="GET requests cannot have a body"):
+        builder.build()
