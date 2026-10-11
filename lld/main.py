@@ -7,28 +7,33 @@ class DiscountStrategy(ABC):
 
 class PercentageDiscount(DiscountStrategy):
     def __init__(self, percentage: float):
-        pass
-        
+        self.percentage = percentage
+        if percentage < 0.0 or percentage > 100.0:
+            raise ValueError("Negative percentage not allowed") 
     def apply_discount(self, price: float) -> float:
-        pass
+        return price * (1 - self.percentage / 100.0)
+        
 
 class FlatDiscount(DiscountStrategy):
     def __init__(self, flat_amount: float):
-        pass
+        self.flat_amount = flat_amount
         
     def apply_discount(self, price: float) -> float:
-        pass
-
+        price -= self.flat_amount
+        return 0.0 if price < 0.0 else price
+        
 class NoDiscount(DiscountStrategy):
     def apply_discount(self, price: float) -> float:
-        pass
+        return price
 
 class Checkout:
     def __init__(self, strategy: DiscountStrategy):
-        pass
+        self.strategy = strategy
 
     def set_strategy(self, strategy: DiscountStrategy) -> None:
-        pass
+        self.strategy = strategy
 
     def calculate_total(self, price: float) -> float:
-        pass
+        if price < 0.0:
+            raise ValueError("Negative prices not allowed")
+        return self.strategy.apply_discount(price)
