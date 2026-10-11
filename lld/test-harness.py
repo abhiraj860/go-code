@@ -1,95 +1,91 @@
 import threading
-import time
 import sys
 import traceback
-from main import ConnectionPool
+from main import AtomicInteger
 
-def test_initial_capacity():
-    pool = ConnectionPool(3)
-    assert pool.acquire(timeout=1.0) is True, "Failed to acquire 1st connection"
-    assert pool.acquire(timeout=1.0) is True, "Failed to acquire 2nd connection"
-    assert pool.acquire(timeout=1.0) is True, "Failed to acquire 3rd connection"
-    assert pool.acquire(timeout=0.1) is False, "Acquired 4th connection but max is 3"
+def test_initial_value_and_get():
+    atomic = AtomicInteger(5)
+    assert atomic.get() == 5, f"Expected 5, got {atomic.get()}"
+    atomic2 = AtomicInteger()
+    assert atomic2.get() == 0, f"Expected 0, got {atomic2.get()}"
 
-def test_concurrency_limit():
-    max_conn = 5
-    pool = ConnectionPool(max_conn)
-    active_count = 0
-    max_observed = 0
-    lock = threading.Lock()
-    barrier = threading.Barrier(20)
+def test_compare_and_set_basic():
+    atomic = AtomicInteger(10)
+    
+    # Successful CAS
+    res = atomic.compare_and_set(10, 20)
+    assert res is True, "CAS should return True on success"
+    assert atomic.get() == 20, "Value should be updated to 20"
+    
+    # Failed CAS
+    res = atomic.compare_and_set(10, 30)
+    assert res is False, "CAS should return False on failure"
+    assert atomic.get() == 20, "Value should remain 20 after failed CAS"
+
+def test_increment_and_get_basic():
+    atomic = AtomicInteger(0)
+    res = atomic.increment_and_get()
+    assert res == 1, f"Expected 1, got {res}"
+    assert atomic.get() == 1, f"Expected 1, got {atomic.get()}"
+
+def test_no_lost_updates_under_contention():
+    atomic = AtomicInteger(0)
+    threads_count = 10
+    increments_per_thread = 10000
+    
+    barrier = threading.Barrier(threads_count)
     
     def worker():
-        nonlocal active_count, max_observed
         barrier.wait(timeout=5.0)
-        if pool.acquire(timeout=5.0):
-            with lock:
-                active_count += 1
-                if active_count > max_observed:
-                    max_observed = active_count
-            time.sleep(0.05) # Hold the connection briefly
-            with lock:
-                active_count -= 1
-            pool.release()
-
-    threads = [threading.Thread(target=worker) for _ in range(20)]
+        for _ in range(increments_per_thread):
+            atomic.increment_and_get()
+            
+    threads = [threading.Thread(target=worker) for _ in range(threads_count)]
     for t in threads: t.start()
     for t in threads: t.join(timeout=5.0)
     
     for t in threads:
-        assert not t.is_alive(), "A thread deadlocked or missed a signal"
-    assert max_observed == max_conn, f"Expected max concurrency {max_conn}, got {max_observed}"
-
-def test_blocking_and_wakeup():
-    pool = ConnectionPool(1)
-    pool.acquire() # Pool is now empty
-    
-    success = [False]
-    def waiter():
-        success[0] = pool.acquire(timeout=5.0)
+        assert not t.is_alive(), "A thread timed out"
         
-    t = threading.Thread(target=waiter)
-    t.start()
-    
-    time.sleep(0.1) # Give waiter time to block
-    assert t.is_alive(), "Thread should be blocked waiting for connection"
-    
-    pool.release() # Should wake up the waiter
-    t.join(timeout=1.0)
-    
-    assert not t.is_alive(), "Waiter thread did not wake up upon release"
-    assert success[0] is True, "Waiter failed to acquire connection after being woken"
+    expected_total = threads_count * increments_per_thread
+    actual_total = atomic.get()
+    assert actual_total == expected_total, f"Lost updates! Expected {expected_total}, got {actual_total}"
 
-def test_timeout_behavior():
-    pool = ConnectionPool(1)
-    pool.acquire() # Empty the pool
+def test_cas_under_contention():
+    atomic = AtomicInteger(0)
+    threads_count = 10
+    updates_per_thread = 1000
     
-    start = time.time()
-    result = pool.acquire(timeout=0.2)
-    elapsed = time.time() - start
+    barrier = threading.Barrier(threads_count)
     
-    assert result is False, "Expected acquire to return False on timeout"
-    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
+    def worker():
+        barrier.wait(timeout=5.0)
+        for _ in range(updates_per_thread):
+            while True:
+                current = atomic.get()
+                # Attempt to update. If it fails, another thread won the race, so try again.
+                if atomic.compare_and_set(current, current + 1):
+                    break
 
-def test_over_release_raises():
-    pool = ConnectionPool(2)
-    pool.acquire()
-    pool.release()
+    threads = [threading.Thread(target=worker) for _ in range(threads_count)]
+    for t in threads: t.start()
+    for t in threads: t.join(timeout=5.0)
     
-    try:
-        pool.release()
-        assert False, "Expected ValueError when over-releasing, but no exception was raised"
-    except ValueError:
-        pass # Expected
+    for t in threads:
+        assert not t.is_alive(), "A thread timed out or deadlocked in CAS loop"
+        
+    expected_total = threads_count * updates_per_thread
+    actual_total = atomic.get()
+    assert actual_total == expected_total, f"CAS contention failed! Expected {expected_total}, got {actual_total}"
 
 # --- Test Runner ---
 def run_tests():
     tests = [
-        test_initial_capacity,
-        test_concurrency_limit,
-        test_blocking_and_wakeup,
-        test_timeout_behavior,
-        test_over_release_raises
+        test_initial_value_and_get,
+        test_compare_and_set_basic,
+        test_increment_and_get_basic,
+        test_no_lost_updates_under_contention,
+        test_cas_under_contention
     ]
     
     passed = 0

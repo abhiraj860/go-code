@@ -1,22 +1,35 @@
 import threading
 
-class ConnectionPool:
-    def __init__(self, max_connections: int):
-        """Initialize the pool with a maximum number of available connections."""
-        self._max_connections = max_connections
-        self._semaphore = threading.BoundedSemaphore(max_connections)
+class AtomicInteger:
+    def __init__(self, initial_value: int = 0):
+        """Initialize the atomic integer."""
+        self._atomic_integer = initial_value
+        self._threading_lock = threading.Lock()
+    
+    def get(self) -> int:
+        """Return the current value."""
+        with self._threading_lock:
+            return self._atomic_integer
 
-    def acquire(self, timeout: float = None) -> bool:
+    def compare_and_set(self, expected: int, new_value: int) -> bool:
         """
-        Attempt to acquire a connection. 
-        Blocks until one is available or the timeout (in seconds) expires.
-        Returns True if acquired, False if the timeout was reached.
+        Atomically set the value to new_value IF the current value equals expected.
+        Returns True if the update succeeded, False if the current value was not 'expected'.
         """
-        return self._semaphore.acquire(timeout=timeout)
+        with self._threading_lock:
+            if self._atomic_integer == expected:
+                self._atomic_integer = new_value
+                return True
+            else:
+                return False 
 
-    def release(self) -> None:
+    def increment_and_get(self) -> int:
         """
-        Return a connection to the pool.
-        Raises ValueError if releasing would exceed the initial max_connections.
+        Atomically increment the value by 1 and return the NEW value.
+        (Hint: You can implement this using a loop and compare_and_set, or directly 
+        if you prefer, but it must be completely thread-safe).
         """
-        self._semaphore.release()
+        with self._threading_lock:
+            self._atomic_integer += 1
+            return self._atomic_integer
+        
