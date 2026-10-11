@@ -9,7 +9,7 @@ class PercentageDiscount(DiscountStrategy):
     def __init__(self, percentage: float):
         self.percentage = percentage
         if percentage < 0.0 or percentage > 100.0:
-            raise ValueError("Negative percentage not allowed") 
+            raise ValueError("Negative percentage or greater than 100% not allowed") 
     def apply_discount(self, price: float) -> float:
         return price * (1 - self.percentage / 100.0)
         
