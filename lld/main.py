@@ -1,35 +1,52 @@
-import threading
+from abc import ABC, abstractmethod
+from typing import List
 
-class AtomicInteger:
-    def __init__(self, initial_value: int = 0):
-        """Initialize the atomic integer."""
-        self._atomic_integer = initial_value
-        self._threading_lock = threading.Lock()
-    
-    def get(self) -> int:
-        """Return the current value."""
-        with self._threading_lock:
-            return self._atomic_integer
+class Observer(ABC):
+    @abstractmethod
+    def update(self, job_title: str) -> None:
+        pass
 
-    def compare_and_set(self, expected: int, new_value: int) -> bool:
-        """
-        Atomically set the value to new_value IF the current value equals expected.
-        Returns True if the update succeeded, False if the current value was not 'expected'.
-        """
-        with self._threading_lock:
-            if self._atomic_integer == expected:
-                self._atomic_integer = new_value
-                return True
-            else:
-                return False 
-
-    def increment_and_get(self) -> int:
-        """
-        Atomically increment the value by 1 and return the NEW value.
-        (Hint: You can implement this using a loop and compare_and_set, or directly 
-        if you prefer, but it must be completely thread-safe).
-        """
-        with self._threading_lock:
-            self._atomic_integer += 1
-            return self._atomic_integer
+class Subject(ABC):
+    @abstractmethod
+    def attach(self, observer: Observer) -> None:
+        pass
         
+    @abstractmethod
+    def detach(self, observer: Observer) -> None:
+        pass
+        
+    @abstractmethod
+    def notify(self, job_title: str) -> None:
+        pass
+
+class JobSeeker(Observer):
+    def __init__(self, name: str):
+        # Must initialize a public list to track received jobs
+        self.name = name
+        self.notifications: List[str] = []
+        
+    def update(self, job_title: str) -> None:
+        self.notifications.append(job_title)
+
+class JobBoard(Subject):
+    def __init__(self):
+        self.observers : List[Observer] = []
+        self.job_list: List[str] = []
+
+    def attach(self, observer: Observer) -> None:
+        if observer in self.observers:
+            raise ValueError("Observer already present")
+        self.observers.append(observer)
+        
+    def detach(self, observer: Observer) -> None:
+        if observer not in self.observers:
+            raise KeyError("Observer not in list")     
+        self.observers.remove(observer)
+        
+    def notify(self, job_title: str) -> None:
+        for observer in self.observers:
+           observer.update(job_title) 
+        
+    def add_job(self, job_title: str) -> None:
+        self.job_list.append(job_title)
+        self.notify(job_title)
