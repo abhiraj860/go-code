@@ -17,3 +17,9 @@ def vowelStrings(word, queries):
 word = "prefixsum" 
 queries = [[0, 2], [1, 4], [3, 5]]
 print(vowelStrings(word, queries))
+arr = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+cou = arr.copy()
+cou[0][0] = 23
+print(arr)
+print(cou)
+

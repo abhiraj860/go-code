@@ -1,41 +1,34 @@
-from typing import Dict, Optional
+from abc import ABC, abstractmethod
 
-class HttpRequest:
-    url: str
-    method: str
-    headers: Dict[str, str]
-    body: Optional[str]
+class DiscountStrategy(ABC):
+    @abstractmethod
+    def apply_discount(self, price: float) -> float:
+        pass
 
-class HttpRequestBuilder:
-    def __init__(self, url: str):
-        self.url = url
-        self._method = "GET"
-        self.header = {}
-        self._body = None
-
-    def method(self, http_method: str) -> 'HttpRequestBuilder':
-        self._method = http_method
-        return self
-
-    def add_header(self, key: str, value: str) -> 'HttpRequestBuilder':
-        self.header[key] = value
-        return self
-
-    def body(self, payload: str) -> 'HttpRequestBuilder':
-        self._body = payload
-        return self
-    
-    def build(self) -> HttpRequest:
-        if self.url is None:
-            raise ValueError("URL not provided")
-        http_request = HttpRequest()
-        http_request.url = self.url
-        http_request.method = self._method
-        http_request.headers = self.header
-        http_request.body = self._body
-        if self._method == "GET" and self._body is not None:
-            raise ValueError("GET requests cannot have a body")
-        return http_request
+class PercentageDiscount(DiscountStrategy):
+    def __init__(self, percentage: float):
+        pass
         
+    def apply_discount(self, price: float) -> float:
+        pass
 
-    
+class FlatDiscount(DiscountStrategy):
+    def __init__(self, flat_amount: float):
+        pass
+        
+    def apply_discount(self, price: float) -> float:
+        pass
+
+class NoDiscount(DiscountStrategy):
+    def apply_discount(self, price: float) -> float:
+        pass
+
+class Checkout:
+    def __init__(self, strategy: DiscountStrategy):
+        pass
+
+    def set_strategy(self, strategy: DiscountStrategy) -> None:
+        pass
+
+    def calculate_total(self, price: float) -> float:
+        pass
