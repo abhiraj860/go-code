@@ -1,75 +1,31 @@
-from abc import ABC, abstractmethod
+import threading
 
-class State(ABC):
-    @abstractmethod
-    def play(self) -> str:
-        pass
-        
-    @abstractmethod
-    def pause(self) -> str:
-        pass
-        
-    @abstractmethod
-    def stop(self) -> str:
-        pass
+class CountDownLatch:
+    def __init__(self, count: int):
+        """Initialize the latch with the given count."""
+        self._condition = threading.Condition()
+        self._latch_count = count
 
-class MediaPlayer:
-    def __init__(self):
-        self.state = StoppedState(self)
+    def await_zero(self, timeout: float = None) -> bool:
+        """
+        Block the calling thread until the internal count reaches zero.
+        If the count is already zero, return True immediately.
+        If the timeout is reached before the count reaches zero, return False.
+        Otherwise, return True.
+        """
+        with self._condition:
+            return self._condition.wait_for(lambda: self._latch_count == 0, timeout = timeout)
         
-    def set_state(self, state: State) -> None:
-        self.state = state
-              
-    def play(self) -> str:
-        return self.state.play()
-        
-    def pause(self) -> str:
-        return self.state.pause()
-        
-    def stop(self) -> str:
-        return self.state.stop()
 
-class StoppedState(State):
-    def __init__(self, player: MediaPlayer):
-        self.player = player    
-        
-    def play(self) -> str:
-        self.player.set_state(PlayingState(self.player))
-        return "Starting playback"
-    
-    def pause(self) -> str: 
-        return "Can't pause, player is stopped"
-    
-    def stop(self) -> str:
-        return "Already stopped"
-
-class PlayingState(State):
-    def __init__(self, player: MediaPlayer):
-        self.player = player
-        
-    def play(self) -> str: 
-        return "Already playing"
-    
-    def pause(self) -> str: 
-        self.player.set_state(PausedState(self.player))
-        return "Playback paused"
-    
-    def stop(self) -> str: 
-        self.player.set_state(StoppedState(self.player))
-        return "Playback stopped"
-
-class PausedState(State):
-    def __init__(self, player: MediaPlayer):
-        self.player = player
-        
-    def play(self) -> str: 
-        self.player.set_state(PlayingState(self.player))
-        return "Resuming playback"
-    
-    def pause(self) -> str:
-        return "Already paused"
-    
-    def stop(self) -> str:
-        self.player.set_state(StoppedState(self.player))
-        return "Playback stopped"
-    
+    def count_down(self) -> None:
+        """
+        Decrement the internal count. 
+        If the count reaches zero, wake up ALL waiting threads.
+        If the count is already zero, do nothing (or cap at zero).
+        """
+        with self._condition:
+            if self._latch_count == 0:
+                return
+            self._latch_count -= 1
+            if self._latch_count == 0:
+                self._condition.notify_all()

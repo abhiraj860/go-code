@@ -1,77 +1,106 @@
+import threading
+import time
 import sys
 import traceback
+from main import CountDownLatch
 
-try:
-    from main import MediaPlayer, StoppedState, PlayingState, PausedState
-except ImportError as e:
-    print(f"FAIL: Could not import required classes: {e}")
-    sys.exit(1)
-
-def test_initial_state_is_stopped():
-    player = MediaPlayer()
-    assert player.stop() == "Already stopped", "Initial state stop() failed"
-    assert player.pause() == "Can't pause, player is stopped", "Initial state pause() failed"
-
-def test_stopped_to_playing_transition():
-    player = MediaPlayer()
-    assert player.play() == "Starting playback", "Should transition to playing"
-    # Verify we are now in PlayingState by checking playing behavior
-    assert player.play() == "Already playing", "Should be in playing state now"
-
-def test_playing_to_paused_transition():
-    player = MediaPlayer()
-    player.play() # Now Playing
+def test_no_wait_if_zero():
+    latch = CountDownLatch(0)
+    start = time.time()
+    result = latch.await_zero(timeout=1.0)
+    elapsed = time.time() - start
     
-    assert player.pause() == "Playback paused", "Should transition to paused"
-    # Verify we are now in PausedState
-    assert player.pause() == "Already paused", "Should be in paused state now"
+    assert result is True, "Expected True when latch is already zero"
+    assert elapsed < 0.1, "await_zero blocked when count was already zero"
 
-def test_paused_to_playing_transition():
-    player = MediaPlayer()
-    player.play()  # Playing
-    player.pause() # Paused
+def test_timeout_behavior():
+    latch = CountDownLatch(1)
+    start = time.time()
+    result = latch.await_zero(timeout=0.2)
+    elapsed = time.time() - start
     
-    assert player.play() == "Resuming playback", "Should transition back to playing"
-    assert player.play() == "Already playing", "Should be in playing state again"
+    assert result is False, "Expected False on timeout"
+    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
 
-def test_playing_to_stopped_transition():
-    player = MediaPlayer()
-    player.play() # Playing
+def test_count_down_wakes_all():
+    latch = CountDownLatch(1)
+    waiter_count = 5
+    success = [False] * waiter_count
     
-    assert player.stop() == "Playback stopped", "Should transition to stopped"
-    assert player.stop() == "Already stopped", "Should be in stopped state now"
-
-def test_paused_to_stopped_transition():
-    player = MediaPlayer()
-    player.play()  # Playing
-    player.pause() # Paused
+    def waiter(idx):
+        success[idx] = latch.await_zero(timeout=2.0)
+        
+    threads = [threading.Thread(target=waiter, args=(i,)) for i in range(waiter_count)]
+    for t in threads: t.start()
     
-    assert player.stop() == "Playback stopped", "Should transition to stopped from paused"
-    assert player.pause() == "Can't pause, player is stopped", "Should be in stopped state now"
+    time.sleep(0.1) # Ensure all waiters are blocked
+    
+    latch.count_down()
+    
+    for t in threads:
+        t.join(timeout=1.0)
+        assert not t.is_alive(), "A thread failed to wake up after count_down"
+        
+    assert all(success), "Not all threads returned True after being woken"
 
-if __name__ == "__main__":
+def test_concurrent_count_down():
+    total_count = 100
+    latch = CountDownLatch(total_count)
+    
+    def worker():
+        latch.count_down()
+        
+    threads = [threading.Thread(target=worker) for _ in range(total_count)]
+    for t in threads: t.start()
+    for t in threads: t.join(timeout=2.0)
+    
+    result = latch.await_zero(timeout=0.1)
+    assert result is True, "Latch did not reach zero after concurrent count_downs"
+
+def test_multiple_steps_to_zero():
+    latch = CountDownLatch(3)
+    
+    def decrementor():
+        time.sleep(0.1)
+        latch.count_down()
+        time.sleep(0.1)
+        latch.count_down()
+        time.sleep(0.1)
+        latch.count_down()
+
+    t = threading.Thread(target=decrementor)
+    t.start()
+    
+    result = latch.await_zero(timeout=1.0)
+    t.join()
+    assert result is True, "Failed to wait for multiple sequential count_downs"
+
+# --- Test Runner ---
+def run_tests():
     tests = [
-        test_initial_state_is_stopped,
-        test_stopped_to_playing_transition,
-        test_playing_to_paused_transition,
-        test_paused_to_playing_transition,
-        test_playing_to_stopped_transition,
-        test_paused_to_stopped_transition
+        test_no_wait_if_zero,
+        test_timeout_behavior,
+        test_count_down_wakes_all,
+        test_concurrent_count_down,
+        test_multiple_steps_to_zero
     ]
     
     passed = 0
     for test in tests:
         try:
             test()
-            print(f"PASS: {test.__name__}")
+            print(f"✅ {test.__name__}")
             passed += 1
+        except AssertionError as e:
+            print(f"❌ {test.__name__} FAILED: {e}")
         except Exception as e:
-            print(f"FAIL: {test.__name__}")
-            print(f"      {type(e).__name__}: {e}")
-            traceback.print_exc(limit=-1, file=sys.stdout)
-            
-    print(f"\nSummary: {passed}/{len(tests)} passed.")
+            print(f"❌ {test.__name__} CRASHED:")
+            traceback.print_exc()
+
+    print(f"\n{passed}/{len(tests)} passed.")
     if passed < len(tests):
         sys.exit(1)
-    else:
-        sys.exit(0)
+    sys.exit(0)
+
+if __name__ == "__main__":
+    run_tests()
