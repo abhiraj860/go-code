@@ -1,31 +1,51 @@
-import threading
+from abc import ABC, abstractmethod
 
-class CountDownLatch:
-    def __init__(self, count: int):
-        """Initialize the latch with the given count."""
-        self._condition = threading.Condition()
-        self._latch_count = count
-
-    def await_zero(self, timeout: float = None) -> bool:
-        """
-        Block the calling thread until the internal count reaches zero.
-        If the count is already zero, return True immediately.
-        If the timeout is reached before the count reaches zero, return False.
-        Otherwise, return True.
-        """
-        with self._condition:
-            return self._condition.wait_for(lambda: self._latch_count == 0, timeout = timeout)
+class Coffee(ABC):
+    @abstractmethod
+    def get_cost(self) -> float:
+        pass
         
+    @abstractmethod
+    def get_description(self) -> str:
+        pass
 
-    def count_down(self) -> None:
-        """
-        Decrement the internal count. 
-        If the count reaches zero, wake up ALL waiting threads.
-        If the count is already zero, do nothing (or cap at zero).
-        """
-        with self._condition:
-            if self._latch_count == 0:
-                return
-            self._latch_count -= 1
-            if self._latch_count == 0:
-                self._condition.notify_all()
+class SimpleCoffee(Coffee):
+    def get_cost(self) -> float:
+        return 2.0
+        
+    def get_description(self) -> str:
+        return "Simple Coffee"
+
+class CoffeeDecorator(Coffee):
+    def __init__(self, coffee: Coffee):
+        self.coffee = coffee
+
+    @abstractmethod
+    def get_cost(self) -> float:
+        pass
+        
+    @abstractmethod
+    def get_description(self) -> str:
+        pass
+
+class MilkDecorator(CoffeeDecorator):
+        
+    def get_cost(self) -> float:
+        return self.coffee.get_cost() + 0.5 
+        
+    def get_description(self) -> str:
+        return self.coffee.get_description() + ", Milk"
+
+class WhipDecorator(CoffeeDecorator):
+    def get_cost(self) -> float:
+        return self.coffee.get_cost() + 0.7
+        
+    def get_description(self) -> str:
+        return self.coffee.get_description() + ", Whip"
+
+class VanillaSyrupDecorator(CoffeeDecorator):
+    def get_cost(self) -> float:
+        return self.coffee.get_cost() + 0.6
+        
+    def get_description(self) -> str:
+        return self.coffee.get_description() + ", Vanilla Syrup"

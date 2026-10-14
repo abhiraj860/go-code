@@ -1,106 +1,75 @@
-import threading
-import time
 import sys
 import traceback
-from main import CountDownLatch
+import math
 
-def test_no_wait_if_zero():
-    latch = CountDownLatch(0)
-    start = time.time()
-    result = latch.await_zero(timeout=1.0)
-    elapsed = time.time() - start
-    
-    assert result is True, "Expected True when latch is already zero"
-    assert elapsed < 0.1, "await_zero blocked when count was already zero"
+try:
+    from main import (
+        SimpleCoffee, MilkDecorator, WhipDecorator, VanillaSyrupDecorator
+    )
+except ImportError as e:
+    print(f"FAIL: Could not import required classes: {e}")
+    sys.exit(1)
 
-def test_timeout_behavior():
-    latch = CountDownLatch(1)
-    start = time.time()
-    result = latch.await_zero(timeout=0.2)
-    elapsed = time.time() - start
-    
-    assert result is False, "Expected False on timeout"
-    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
+def is_close(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
-def test_count_down_wakes_all():
-    latch = CountDownLatch(1)
-    waiter_count = 5
-    success = [False] * waiter_count
-    
-    def waiter(idx):
-        success[idx] = latch.await_zero(timeout=2.0)
-        
-    threads = [threading.Thread(target=waiter, args=(i,)) for i in range(waiter_count)]
-    for t in threads: t.start()
-    
-    time.sleep(0.1) # Ensure all waiters are blocked
-    
-    latch.count_down()
-    
-    for t in threads:
-        t.join(timeout=1.0)
-        assert not t.is_alive(), "A thread failed to wake up after count_down"
-        
-    assert all(success), "Not all threads returned True after being woken"
+def test_simple_coffee():
+    coffee = SimpleCoffee()
+    assert is_close(coffee.get_cost(), 2.0), f"Expected 2.0, got {coffee.get_cost()}"
+    assert coffee.get_description() == "Simple Coffee", f"Got: {coffee.get_description()}"
 
-def test_concurrent_count_down():
-    total_count = 100
-    latch = CountDownLatch(total_count)
-    
-    def worker():
-        latch.count_down()
-        
-    threads = [threading.Thread(target=worker) for _ in range(total_count)]
-    for t in threads: t.start()
-    for t in threads: t.join(timeout=2.0)
-    
-    result = latch.await_zero(timeout=0.1)
-    assert result is True, "Latch did not reach zero after concurrent count_downs"
+def test_single_decorator():
+    coffee = SimpleCoffee()
+    coffee = MilkDecorator(coffee)
+    assert is_close(coffee.get_cost(), 2.5), f"Expected 2.5, got {coffee.get_cost()}"
+    assert coffee.get_description() == "Simple Coffee, Milk", f"Got: {coffee.get_description()}"
 
-def test_multiple_steps_to_zero():
-    latch = CountDownLatch(3)
+def test_multiple_mixed_decorators():
+    coffee = SimpleCoffee()
+    coffee = VanillaSyrupDecorator(coffee)
+    coffee = WhipDecorator(coffee)
+    coffee = MilkDecorator(coffee)
     
-    def decrementor():
-        time.sleep(0.1)
-        latch.count_down()
-        time.sleep(0.1)
-        latch.count_down()
-        time.sleep(0.1)
-        latch.count_down()
-
-    t = threading.Thread(target=decrementor)
-    t.start()
+    # 2.0 + 0.6 + 0.7 + 0.5 = 3.8
+    expected_cost = 3.8
+    expected_desc = "Simple Coffee, Vanilla Syrup, Whip, Milk"
     
-    result = latch.await_zero(timeout=1.0)
-    t.join()
-    assert result is True, "Failed to wait for multiple sequential count_downs"
+    assert is_close(coffee.get_cost(), expected_cost), f"Expected {expected_cost}, got {coffee.get_cost()}"
+    assert coffee.get_description() == expected_desc, f"Got: {coffee.get_description()}"
 
-# --- Test Runner ---
-def run_tests():
+def test_duplicate_decorators():
+    coffee = SimpleCoffee()
+    coffee = MilkDecorator(coffee)
+    coffee = MilkDecorator(coffee) # Double milk
+    
+    # 2.0 + 0.5 + 0.5 = 3.0
+    expected_cost = 3.0
+    expected_desc = "Simple Coffee, Milk, Milk"
+    
+    assert is_close(coffee.get_cost(), expected_cost), f"Expected {expected_cost}, got {coffee.get_cost()}"
+    assert coffee.get_description() == expected_desc, f"Got: {coffee.get_description()}"
+
+if __name__ == "__main__":
     tests = [
-        test_no_wait_if_zero,
-        test_timeout_behavior,
-        test_count_down_wakes_all,
-        test_concurrent_count_down,
-        test_multiple_steps_to_zero
+        test_simple_coffee,
+        test_single_decorator,
+        test_multiple_mixed_decorators,
+        test_duplicate_decorators
     ]
     
     passed = 0
     for test in tests:
         try:
             test()
-            print(f"✅ {test.__name__}")
+            print(f"PASS: {test.__name__}")
             passed += 1
-        except AssertionError as e:
-            print(f"❌ {test.__name__} FAILED: {e}")
         except Exception as e:
-            print(f"❌ {test.__name__} CRASHED:")
-            traceback.print_exc()
-
-    print(f"\n{passed}/{len(tests)} passed.")
+            print(f"FAIL: {test.__name__}")
+            print(f"      {type(e).__name__}: {e}")
+            traceback.print_exc(limit=-1, file=sys.stdout)
+            
+    print(f"\nSummary: {passed}/{len(tests)} passed.")
     if passed < len(tests):
         sys.exit(1)
-    sys.exit(0)
-
-if __name__ == "__main__":
-    run_tests()
+    else:
+        sys.exit(0)
