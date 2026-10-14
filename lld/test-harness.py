@@ -1,75 +1,130 @@
+import threading
+import time
 import sys
 import traceback
-import math
+from main import ReentrantLock
 
-try:
-    from main import (
-        SimpleCoffee, MilkDecorator, WhipDecorator, VanillaSyrupDecorator
-    )
-except ImportError as e:
-    print(f"FAIL: Could not import required classes: {e}")
-    sys.exit(1)
-
-def is_close(a, b, rel_tol=1e-09, abs_tol=0.0):
-    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
-
-def test_simple_coffee():
-    coffee = SimpleCoffee()
-    assert is_close(coffee.get_cost(), 2.0), f"Expected 2.0, got {coffee.get_cost()}"
-    assert coffee.get_description() == "Simple Coffee", f"Got: {coffee.get_description()}"
-
-def test_single_decorator():
-    coffee = SimpleCoffee()
-    coffee = MilkDecorator(coffee)
-    assert is_close(coffee.get_cost(), 2.5), f"Expected 2.5, got {coffee.get_cost()}"
-    assert coffee.get_description() == "Simple Coffee, Milk", f"Got: {coffee.get_description()}"
-
-def test_multiple_mixed_decorators():
-    coffee = SimpleCoffee()
-    coffee = VanillaSyrupDecorator(coffee)
-    coffee = WhipDecorator(coffee)
-    coffee = MilkDecorator(coffee)
+def test_mutual_exclusion():
+    rlock = ReentrantLock()
+    shared_resource = 0
     
-    # 2.0 + 0.6 + 0.7 + 0.5 = 3.8
-    expected_cost = 3.8
-    expected_desc = "Simple Coffee, Vanilla Syrup, Whip, Milk"
-    
-    assert is_close(coffee.get_cost(), expected_cost), f"Expected {expected_cost}, got {coffee.get_cost()}"
-    assert coffee.get_description() == expected_desc, f"Got: {coffee.get_description()}"
+    def worker():
+        nonlocal shared_resource
+        if rlock.acquire(timeout=2.0):
+            # Hold lock long enough to force contention
+            val = shared_resource
+            time.sleep(0.05)
+            shared_resource = val + 1
+            rlock.release()
 
-def test_duplicate_decorators():
-    coffee = SimpleCoffee()
-    coffee = MilkDecorator(coffee)
-    coffee = MilkDecorator(coffee) # Double milk
+    threads = [threading.Thread(target=worker) for _ in range(10)]
+    for t in threads: t.start()
+    for t in threads: t.join(timeout=2.0)
     
-    # 2.0 + 0.5 + 0.5 = 3.0
-    expected_cost = 3.0
-    expected_desc = "Simple Coffee, Milk, Milk"
-    
-    assert is_close(coffee.get_cost(), expected_cost), f"Expected {expected_cost}, got {coffee.get_cost()}"
-    assert coffee.get_description() == expected_desc, f"Got: {coffee.get_description()}"
+    assert shared_resource == 10, f"Expected 10, got {shared_resource}. Mutual exclusion failed."
 
-if __name__ == "__main__":
+def test_reentrancy():
+    rlock = ReentrantLock()
+    
+    # Same thread acquires 3 times
+    assert rlock.acquire(timeout=1.0) is True
+    assert rlock.acquire(timeout=1.0) is True
+    assert rlock.acquire(timeout=1.0) is True
+    
+    # Should still be locked to other threads
+    def other_thread():
+        assert rlock.acquire(timeout=0.1) is False, "Other thread acquired lock while held!"
+        
+    t = threading.Thread(target=other_thread)
+    t.start()
+    t.join()
+    
+    # Release 3 times
+    rlock.release()
+    rlock.release()
+    rlock.release()
+    
+    # Now other thread should be able to acquire
+    success = [False]
+    def other_thread_success():
+        if rlock.acquire(timeout=1.0):
+            success[0] = True
+            rlock.release()
+            
+    t2 = threading.Thread(target=other_thread_success)
+    t2.start()
+    t2.join()
+    assert success[0] is True, "Lock did not free properly after matching releases"
+
+def test_unowned_release_raises():
+    rlock = ReentrantLock()
+    rlock.acquire()
+    
+    def bad_releaser():
+        try:
+            rlock.release()
+            return False # Should not get here
+        except RuntimeError:
+            return True # Expected
+            
+    # Use a mutable list to get the result from the thread
+    result = [False]
+    def wrapper():
+        result[0] = bad_releaser()
+        
+    t = threading.Thread(target=wrapper)
+    t.start()
+    t.join()
+    
+    rlock.release() # Cleanup
+    assert result[0] is True, "release() from non-owner did not raise RuntimeError"
+
+def test_timeout_behavior():
+    rlock = ReentrantLock()
+    rlock.acquire() # Main thread takes the lock
+    
+    start = time.time()
+    def waiter():
+        return rlock.acquire(timeout=0.2)
+        
+    result = [True]
+    def wrapper():
+        result[0] = waiter()
+        
+    t = threading.Thread(target=wrapper)
+    t.start()
+    t.join()
+    elapsed = time.time() - start
+    
+    rlock.release()
+    assert result[0] is False, "Expected False on timeout"
+    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
+
+# --- Test Runner ---
+def run_tests():
     tests = [
-        test_simple_coffee,
-        test_single_decorator,
-        test_multiple_mixed_decorators,
-        test_duplicate_decorators
+        test_mutual_exclusion,
+        test_reentrancy,
+        test_unowned_release_raises,
+        test_timeout_behavior
     ]
     
     passed = 0
     for test in tests:
         try:
             test()
-            print(f"PASS: {test.__name__}")
+            print(f"✅ {test.__name__}")
             passed += 1
+        except AssertionError as e:
+            print(f"❌ {test.__name__} FAILED: {e}")
         except Exception as e:
-            print(f"FAIL: {test.__name__}")
-            print(f"      {type(e).__name__}: {e}")
-            traceback.print_exc(limit=-1, file=sys.stdout)
-            
-    print(f"\nSummary: {passed}/{len(tests)} passed.")
+            print(f"❌ {test.__name__} CRASHED:")
+            traceback.print_exc()
+
+    print(f"\n{passed}/{len(tests)} passed.")
     if passed < len(tests):
         sys.exit(1)
-    else:
-        sys.exit(0)
+    sys.exit(0)
+
+if __name__ == "__main__":
+    run_tests()
