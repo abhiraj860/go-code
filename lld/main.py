@@ -1,52 +1,75 @@
 from abc import ABC, abstractmethod
-from typing import List
 
-class Observer(ABC):
+class State(ABC):
     @abstractmethod
-    def update(self, job_title: str) -> None:
-        pass
-
-class Subject(ABC):
-    @abstractmethod
-    def attach(self, observer: Observer) -> None:
+    def play(self) -> str:
         pass
         
     @abstractmethod
-    def detach(self, observer: Observer) -> None:
+    def pause(self) -> str:
         pass
         
     @abstractmethod
-    def notify(self, job_title: str) -> None:
+    def stop(self) -> str:
         pass
 
-class JobSeeker(Observer):
-    def __init__(self, name: str):
-        # Must initialize a public list to track received jobs
-        self.name = name
-        self.notifications: List[str] = []
-        
-    def update(self, job_title: str) -> None:
-        self.notifications.append(job_title)
-
-class JobBoard(Subject):
+class MediaPlayer:
     def __init__(self):
-        self.observers : List[Observer] = []
-        self.job_list: List[str] = []
+        self.state = StoppedState(self)
+        
+    def set_state(self, state: State) -> None:
+        self.state = state
+              
+    def play(self) -> str:
+        return self.state.play()
+        
+    def pause(self) -> str:
+        return self.state.pause()
+        
+    def stop(self) -> str:
+        return self.state.stop()
 
-    def attach(self, observer: Observer) -> None:
-        if observer in self.observers:
-            raise ValueError("Observer already present")
-        self.observers.append(observer)
+class StoppedState(State):
+    def __init__(self, player: MediaPlayer):
+        self.player = player    
         
-    def detach(self, observer: Observer) -> None:
-        if observer not in self.observers:
-            raise KeyError("Observer not in list")     
-        self.observers.remove(observer)
+    def play(self) -> str:
+        self.player.set_state(PlayingState(self.player))
+        return "Starting playback"
+    
+    def pause(self) -> str: 
+        return "Can't pause, player is stopped"
+    
+    def stop(self) -> str:
+        return "Already stopped"
+
+class PlayingState(State):
+    def __init__(self, player: MediaPlayer):
+        self.player = player
         
-    def notify(self, job_title: str) -> None:
-        for observer in self.observers:
-           observer.update(job_title) 
+    def play(self) -> str: 
+        return "Already playing"
+    
+    def pause(self) -> str: 
+        self.player.set_state(PausedState(self.player))
+        return "Playback paused"
+    
+    def stop(self) -> str: 
+        self.player.set_state(StoppedState(self.player))
+        return "Playback stopped"
+
+class PausedState(State):
+    def __init__(self, player: MediaPlayer):
+        self.player = player
         
-    def add_job(self, job_title: str) -> None:
-        self.job_list.append(job_title)
-        self.notify(job_title)
+    def play(self) -> str: 
+        self.player.set_state(PlayingState(self.player))
+        return "Resuming playback"
+    
+    def pause(self) -> str:
+        return "Already paused"
+    
+    def stop(self) -> str:
+        self.player.set_state(StoppedState(self.player))
+        return "Playback stopped"
+    
