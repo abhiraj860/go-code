@@ -1,43 +1,25 @@
-from typing import Dict, Optional
+from abc import ABC, abstractmethod
+import json
 
-class HttpRequest:
-    def __init__(self, method: str, url: str, headers: Dict[str, str], query_params: Dict[str, str], body: Optional[str]):
-        self.method = method
-        self.url = url
-        self.headers = headers
-        self.query_params = query_params
-        self.body = body
+class AnalyticsLogger(ABC):
+    @abstractmethod
+    def log_event(self, event_name: str, metadata: dict) -> None:
+        pass
 
-class HttpRequestBuilder:
+# The third-party Adaptee (Do not modify the internal logic of this class)
+class CloudWatchService:
     def __init__(self):
-        self.method = "GET"
-        self.url = None
-        self.headers = {}
-        self.query_param = {}
-        self.body = None
+        self.metrics_store = []
+        
+    def push_metric(self, metric_name: str, dimensions: str) -> None:
+        self.metrics_store.append((metric_name, dimensions))
 
-    def set_method(self, method: str) -> 'HttpRequestBuilder':
-        self.method = method
-        return self
-
-    def set_url(self, url: str) -> 'HttpRequestBuilder':
-        self.url = url
-        return self
-
-    def add_header(self, key: str, value: str) -> 'HttpRequestBuilder':
-        self.headers[key] = value
-        return self
-
-    def add_query_param(self, key: str, value: str) -> 'HttpRequestBuilder':
-        self.query_param[key] = value
-        return self
-
-    def set_body(self, body: str) -> 'HttpRequestBuilder':
-        self.body = body
-        return self
-
-    def build(self) -> HttpRequest:
-        if self.url is None:
-            raise ValueError("Please input URL")
-        http_request = HttpRequest(method = self.method, url = self.url, headers = self.headers, query_params = self.query_param, body = self.body)
-        return http_request        
+# Your Adapter
+class CloudWatchAdapter(AnalyticsLogger):
+    def __init__(self, cloud_service: CloudWatchService):
+        self.service:CloudWatchService = cloud_service
+        
+    def log_event(self, event_name: str, metadata: dict) -> None:
+        event_name = event_name.upper()
+        metadata = json.dumps(metadata)
+        self.service.push_metric(event_name, metadata)

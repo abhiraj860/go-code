@@ -1,62 +1,49 @@
 import sys
 import traceback
+import json
 
 try:
-    from main import HttpRequestBuilder, HttpRequest
+    from main import AnalyticsLogger, CloudWatchService, CloudWatchAdapter
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def test_fluent_interface_and_build():
-    request = (HttpRequestBuilder()
-               .set_method("POST")
-               .set_url("https://api.example.com/users")
-               .add_header("Content-Type", "application/json")
-               .add_header("Authorization", "Bearer token123")
-               .add_query_param("timeout", "30")
-               .set_body('{"name": "Alice"}')
-               .build())
-    
-    assert isinstance(request, HttpRequest), "build() must return an HttpRequest instance"
-    assert request.method == "POST"
-    assert request.url == "https://api.example.com/users"
-    assert request.headers == {"Content-Type": "application/json", "Authorization": "Bearer token123"}
-    assert request.query_params == {"timeout": "30"}
-    assert request.body == '{"name": "Alice"}'
+def test_adapter_inheritance():
+    service = CloudWatchService()
+    adapter = CloudWatchAdapter(service)
+    assert isinstance(adapter, AnalyticsLogger), "CloudWatchAdapter must implement AnalyticsLogger"
 
-def test_default_method_and_empty_collections():
-    request = HttpRequestBuilder().set_url("https://api.example.com/health").build()
+def test_log_event_translation():
+    service = CloudWatchService()
+    adapter = CloudWatchAdapter(service)
     
-    assert request.method == "GET", "Method should default to GET"
-    assert request.url == "https://api.example.com/health"
-    assert request.headers == {}, "Headers should default to empty dict"
-    assert request.query_params == {}, "Query params should default to empty dict"
-    assert request.body is None, "Body should default to None"
+    adapter.log_event("api_timeout", {"endpoint": "/users", "latency_ms": 5000})
+    
+    assert len(service.metrics_store) == 1, "Should have pushed 1 metric to the service"
+    
+    metric_name, dimensions = service.metrics_store[0]
+    assert metric_name == "API_TIMEOUT", f"Event name should be uppercase, got '{metric_name}'"
+    
+    expected_json = json.dumps({"endpoint": "/users", "latency_ms": 5000})
+    assert dimensions == expected_json, f"Metadata should be JSON string, got '{dimensions}'"
 
-def test_missing_url_raises_error():
-    builder = HttpRequestBuilder().set_method("PUT").set_body("data")
+def test_empty_metadata():
+    service = CloudWatchService()
+    adapter = CloudWatchAdapter(service)
     
-    try:
-        builder.build()
-        assert False, "Should have raised ValueError because URL was not set"
-    except ValueError:
-        pass
-
-def test_accumulation():
-    builder = HttpRequestBuilder()
-    builder.set_url("http://test.com")
-    builder.add_query_param("page", "1")
-    builder.add_query_param("sort", "desc")
+    adapter.log_event("system_reboot", {})
     
-    request = builder.build()
-    assert request.query_params == {"page": "1", "sort": "desc"}, "Query params did not accumulate correctly"
+    assert len(service.metrics_store) == 1, "Should have pushed 1 metric to the service"
+    metric_name, dimensions = service.metrics_store[0]
+    
+    assert metric_name == "SYSTEM_REBOOT", f"Expected 'SYSTEM_REBOOT', got '{metric_name}'"
+    assert dimensions == "{}", f"Empty dict should serialize to '{{}}', got '{dimensions}'"
 
 if __name__ == "__main__":
     tests = [
-        test_fluent_interface_and_build,
-        test_default_method_and_empty_collections,
-        test_missing_url_raises_error,
-        test_accumulation
+        test_adapter_inheritance,
+        test_log_event_translation,
+        test_empty_metadata
     ]
     
     passed = 0
