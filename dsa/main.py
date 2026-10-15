@@ -5,23 +5,26 @@ def min_cost(costs):
     houses = len(costs) 
     if not houses:
         return 0
+    if houses == 1:
+        return min(costs[0])
     color = len(costs[0])
-    dp = {}
     if not color:
         return 0 
-    def helper(i, j):
-        if i == houses:
-            return 0
-        if (i, j) in dp:
-            return dp[(i, j)]
-           
-        minm = float("inf") 
-        for k in range(color):
-            if k != j:
-                minm = min(minm, costs[i][j] + helper(i + 1, k))
-        dp[(i, j)] = minm
-        return minm
-    return min(helper(0, 0), helper(0, 1), helper(0, 2))    
+    
+    def helper():
+        dp = [[float("inf")] * color for _ in range(houses + 1)]
+        for v in range(color):
+            dp[houses][v] = 0
+            
+        for i in reversed(range(houses)):    
+            for j in range(color):
+                minm = float("inf") 
+                for k in range(color):
+                    if k != j:
+                        minm = min(minm, costs[i][j] + dp[i + 1][k])
+                dp[i][j] = minm
+        return min(dp[0])
+    return helper()  
     
     
 print(min_cost(costs))
