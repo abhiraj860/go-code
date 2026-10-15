@@ -1,130 +1,77 @@
-import threading
-import time
 import sys
 import traceback
-from main import ReentrantLock
 
-def test_mutual_exclusion():
-    rlock = ReentrantLock()
-    shared_resource = 0
-    
-    def worker():
-        nonlocal shared_resource
-        if rlock.acquire(timeout=2.0):
-            # Hold lock long enough to force contention
-            val = shared_resource
-            time.sleep(0.05)
-            shared_resource = val + 1
-            rlock.release()
+try:
+    from main import HttpRequestBuilder, HttpRequest
+except ImportError as e:
+    print(f"FAIL: Could not import required classes: {e}")
+    sys.exit(1)
 
-    threads = [threading.Thread(target=worker) for _ in range(10)]
-    for t in threads: t.start()
-    for t in threads: t.join(timeout=2.0)
+def test_fluent_interface_and_build():
+    request = (HttpRequestBuilder()
+               .set_method("POST")
+               .set_url("https://api.example.com/users")
+               .add_header("Content-Type", "application/json")
+               .add_header("Authorization", "Bearer token123")
+               .add_query_param("timeout", "30")
+               .set_body('{"name": "Alice"}')
+               .build())
     
-    assert shared_resource == 10, f"Expected 10, got {shared_resource}. Mutual exclusion failed."
+    assert isinstance(request, HttpRequest), "build() must return an HttpRequest instance"
+    assert request.method == "POST"
+    assert request.url == "https://api.example.com/users"
+    assert request.headers == {"Content-Type": "application/json", "Authorization": "Bearer token123"}
+    assert request.query_params == {"timeout": "30"}
+    assert request.body == '{"name": "Alice"}'
 
-def test_reentrancy():
-    rlock = ReentrantLock()
+def test_default_method_and_empty_collections():
+    request = HttpRequestBuilder().set_url("https://api.example.com/health").build()
     
-    # Same thread acquires 3 times
-    assert rlock.acquire(timeout=1.0) is True
-    assert rlock.acquire(timeout=1.0) is True
-    assert rlock.acquire(timeout=1.0) is True
-    
-    # Should still be locked to other threads
-    def other_thread():
-        assert rlock.acquire(timeout=0.1) is False, "Other thread acquired lock while held!"
-        
-    t = threading.Thread(target=other_thread)
-    t.start()
-    t.join()
-    
-    # Release 3 times
-    rlock.release()
-    rlock.release()
-    rlock.release()
-    
-    # Now other thread should be able to acquire
-    success = [False]
-    def other_thread_success():
-        if rlock.acquire(timeout=1.0):
-            success[0] = True
-            rlock.release()
-            
-    t2 = threading.Thread(target=other_thread_success)
-    t2.start()
-    t2.join()
-    assert success[0] is True, "Lock did not free properly after matching releases"
+    assert request.method == "GET", "Method should default to GET"
+    assert request.url == "https://api.example.com/health"
+    assert request.headers == {}, "Headers should default to empty dict"
+    assert request.query_params == {}, "Query params should default to empty dict"
+    assert request.body is None, "Body should default to None"
 
-def test_unowned_release_raises():
-    rlock = ReentrantLock()
-    rlock.acquire()
+def test_missing_url_raises_error():
+    builder = HttpRequestBuilder().set_method("PUT").set_body("data")
     
-    def bad_releaser():
-        try:
-            rlock.release()
-            return False # Should not get here
-        except RuntimeError:
-            return True # Expected
-            
-    # Use a mutable list to get the result from the thread
-    result = [False]
-    def wrapper():
-        result[0] = bad_releaser()
-        
-    t = threading.Thread(target=wrapper)
-    t.start()
-    t.join()
-    
-    rlock.release() # Cleanup
-    assert result[0] is True, "release() from non-owner did not raise RuntimeError"
+    try:
+        builder.build()
+        assert False, "Should have raised ValueError because URL was not set"
+    except ValueError:
+        pass
 
-def test_timeout_behavior():
-    rlock = ReentrantLock()
-    rlock.acquire() # Main thread takes the lock
+def test_accumulation():
+    builder = HttpRequestBuilder()
+    builder.set_url("http://test.com")
+    builder.add_query_param("page", "1")
+    builder.add_query_param("sort", "desc")
     
-    start = time.time()
-    def waiter():
-        return rlock.acquire(timeout=0.2)
-        
-    result = [True]
-    def wrapper():
-        result[0] = waiter()
-        
-    t = threading.Thread(target=wrapper)
-    t.start()
-    t.join()
-    elapsed = time.time() - start
-    
-    rlock.release()
-    assert result[0] is False, "Expected False on timeout"
-    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
+    request = builder.build()
+    assert request.query_params == {"page": "1", "sort": "desc"}, "Query params did not accumulate correctly"
 
-# --- Test Runner ---
-def run_tests():
+if __name__ == "__main__":
     tests = [
-        test_mutual_exclusion,
-        test_reentrancy,
-        test_unowned_release_raises,
-        test_timeout_behavior
+        test_fluent_interface_and_build,
+        test_default_method_and_empty_collections,
+        test_missing_url_raises_error,
+        test_accumulation
     ]
     
     passed = 0
     for test in tests:
         try:
             test()
-            print(f"✅ {test.__name__}")
+            print(f"PASS: {test.__name__}")
             passed += 1
-        except AssertionError as e:
-            print(f"❌ {test.__name__} FAILED: {e}")
         except Exception as e:
-            print(f"❌ {test.__name__} CRASHED:")
-            traceback.print_exc()
-
-    print(f"\n{passed}/{len(tests)} passed.")
+            print(f"FAIL: {test.__name__}")
+            print(f"      {type(e).__name__}: {e}")
+            traceback.print_exc(limit=-1, file=sys.stdout)
+            
+    print(f"\nSummary: {passed}/{len(tests)} passed.")
     if passed < len(tests):
         sys.exit(1)
-    sys.exit(0)
-
-if __name__ == "__main__":
-    run_tests()
+    else:
+        sys.exit(0)
