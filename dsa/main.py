@@ -1,23 +1,72 @@
-def min_window(s1, s2):
-    n = len(s1)
-    m = len(s2)
-    dp = [-1] * m
-    min_length = float("inf")
-    string = ""
-    for i in range(n):
-         for j in range(m - 1, -1, -1):
-             if s1[i] == s2[j]:
-                 if j == 0:
-                     dp[j] = i
-                 else:
-                     dp[j] = dp[j - 1]
-         if dp[m - 1] != -1:
-            start = dp[m - 1]
-            if i - start + 1 < min_length:
-                min_length = i - start + 1
-                string = s1[start: i + 1]
-                
-    return string   
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.isEndOfWord = False
+
+class Solution:
+    def create_trie(self, words):
+        # === DO NOT MODIFY ===
+        self.root = TrieNode()
+        for word in words:
+            self.insert(word)
+
+    def insert(self, word):
+        node = self.root
+        for char in word:
+            if char not in node.children:
+                node.children[char] = TrieNode()
+            node = node.children[char]
+        node.isEndOfWord = True
     
-print(min_window("hellointerview", "her"))
-print(min_window("codingisfun", "xyz"))
+    def search(self, word):
+        node = self.root
+        for ch in word:
+            if ch in node.children:
+                node = node.children[ch]
+            else:
+                return False
+        return node.isEndOfWord
+         
+
+    def starts_with(self, prefix):
+        node = self.root
+        for ch in prefix:
+            if ch in node.children:
+                node = node.children[ch]
+            else:
+                return False
+        return True
+
+    def delete(self, word):
+        node = self.root() 
+        def _helper(indx, node: TrieNode):
+            if indx == len(word):
+               node.isEndOfWord = False
+               return len(node.children) == 0
+            ch = word[indx]
+            if ch not in node.children:
+                return False
+            can_delete = _helper(indx + 1, node.children[ch])
+            if can_delete:
+                del node.children[ch] 
+            return not node.isEndOfWord and (len(node.children) == 0) 
+        return _helper(0, node)
+        
+        
+        
+        
+        
+        
+    def trie(self, initialWords, commands):
+        # === DO NOT MODIFY ===
+        self.create_trie(initialWords)
+
+        output = []
+        for command, word in commands:
+            if command == "search":
+                output.append(self.search(word))
+            elif command == "startsWith":
+                output.append(self.starts_with(word))
+            elif command == "delete":
+                self.delete(word)
+        return output
