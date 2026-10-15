@@ -12,18 +12,28 @@ def min_cost(costs):
         return 0 
     
     def helper():
-        dp = [[float("inf")] * color for _ in range(houses + 1)]
-        for v in range(color):
-            dp[houses][v] = 0
-            
-        for i in reversed(range(houses)):    
+        prev = [0] * color
+        for i in reversed(range(houses)):
+            min1 = float("inf")
+            min2 = float("inf")
+            min_idx = -1
+            for c in range(color):
+                if prev[c] < min1:
+                    min2 = min1
+                    min1 = prev[c]
+                    min_idx = c
+                elif prev[c] < min2:
+                    min2 = prev[c]
+            curr = [0] * color
             for j in range(color):
-                minm = float("inf") 
-                for k in range(color):
-                    if k != j:
-                        minm = min(minm, costs[i][j] + dp[i + 1][k])
-                dp[i][j] = minm
-        return min(dp[0])
+                if j != min_idx:
+                    curr[j] = costs[i][j] + min1
+                else:
+                    curr[j] = costs[i][j] + min2
+            prev = curr
+        return min(prev)
+   
+
     return helper()  
     
     
