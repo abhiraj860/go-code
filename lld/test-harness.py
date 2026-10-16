@@ -2,59 +2,67 @@ import sys
 import traceback
 
 try:
-    from main import DatabaseConnection
+    from main import Projector, SoundSystem, StreamingDevice, HomeTheaterFacade
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def setup_function():
-    DatabaseConnection.reset_instance()
+def test_watch_movie_sequence():
+    projector = Projector()
+    sound = SoundSystem()
+    streaming = StreamingDevice()
+    facade = HomeTheaterFacade(projector, sound, streaming)
 
-def test_same_instance_returned():
-    setup_function()
-    db1 = DatabaseConnection("postgres://prod")
-    db2 = DatabaseConnection("postgres://prod")
-    assert db1 is db2, "DatabaseConnection must return the exact same instance"
+    logs = facade.watch_movie("Inception", 75)
 
-def test_initialization_stickiness():
-    setup_function()
-    db1 = DatabaseConnection("postgres://prod")
-    db2 = DatabaseConnection("mysql://staging")
-    assert db2.connection_string == "postgres://prod", "Initial connection_string should not be overwritten"
+    expected = [
+        "Projector powered on",
+        "Projector input set to HDMI 1",
+        "Sound system powered on",
+        "Sound system volume set to 75",
+        "Streaming device powered on",
+        "Playing 'Inception'"
+    ]
+    assert logs == expected, f"Sequence mismatch.\nGot: {logs}\nExpected: {expected}"
 
-def test_query_execution_and_counting():
-    setup_function()
-    db = DatabaseConnection("sqlite://mydb")
-    assert db.get_query_count() == 0, "Initial query count should be 0"
-    
-    res1 = db.execute_query("SELECT * FROM users")
-    assert res1 == "Executed: SELECT * FROM users on sqlite://mydb"
-    assert db.get_query_count() == 1
-    
-    db2 = DatabaseConnection()
-    res2 = db2.execute_query("UPDATE users SET active = 1")
-    assert res2 == "Executed: UPDATE users SET active = 1 on sqlite://mydb"
-    assert db.get_query_count() == 2
-    assert db2.get_query_count() == 2
+def test_watch_movie_volume_validation():
+    projector = Projector()
+    sound = SoundSystem()
+    streaming = StreamingDevice()
+    facade = HomeTheaterFacade(projector, sound, streaming)
 
-def test_reset_instance():
-    setup_function()
-    db1 = DatabaseConnection("db1")
-    db1.execute_query("SELECT 1")
-    
-    DatabaseConnection.reset_instance()
-    
-    db2 = DatabaseConnection("db2")
-    assert db1 is not db2, "After reset, a new instance should be created"
-    assert db2.connection_string == "db2", "New instance should use new connection string"
-    assert db2.get_query_count() == 0, "New instance query count should start at 0"
+    try:
+        facade.watch_movie("Inception", 150)
+        assert False, "Should have raised ValueError for volume > 100"
+    except ValueError:
+        pass
+
+    try:
+        facade.watch_movie("Inception", -10)
+        assert False, "Should have raised ValueError for volume < 0"
+    except ValueError:
+        pass
+
+def test_end_movie_sequence():
+    projector = Projector()
+    sound = SoundSystem()
+    streaming = StreamingDevice()
+    facade = HomeTheaterFacade(projector, sound, streaming)
+
+    logs = facade.end_movie()
+
+    expected = [
+        "Streaming device powered off",
+        "Sound system powered off",
+        "Projector powered off"
+    ]
+    assert logs == expected, f"Sequence mismatch.\nGot: {logs}\nExpected: {expected}"
 
 if __name__ == "__main__":
     tests = [
-        test_same_instance_returned,
-        test_initialization_stickiness,
-        test_query_execution_and_counting,
-        test_reset_instance
+        test_watch_movie_sequence,
+        test_watch_movie_volume_validation,
+        test_end_movie_sequence
     ]
     
     passed = 0
