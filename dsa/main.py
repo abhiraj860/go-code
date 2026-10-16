@@ -1,42 +1,44 @@
-costs = [[8, 4, 15], [10, 7, 3], [6, 9, 12]]
+class Node:
+    def __init__(self, key = 0, value = 0):
+        self.key = key
+        self.value = value
+        self.next = None
+        self.prev = None
 
+class LRUCache:
+    def __init__(self, capacity: int):
+        self.cap = capacity
+        self.cache = {}
+        self.head = Node()
+        self.tail = Node()
+        self.head.next = self.tail
+        self.tail.prev = self.head
 
-def min_cost(costs):
-    houses = len(costs) 
-    if not houses:
-        return 0
-    if houses == 1:
-        return min(costs[0])
-    color = len(costs[0])
-    if not color:
-        return 0 
+    def _remove(self, node: Node):
+        node.prev.next = node.next
+        node.next.prev = node.prev
+        
+    def _insert_head(self, node: Node):
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next = node
+        self.head.next.prev = node
+        
+    def get(self, key: int) -> int:
+        if key not in self.cache:
+            return -1
+        node:Node = self.cache[key]
+        self._remove(node)
+        self._insert_head(node)
+        return node.value
     
-    def helper():
-        prev = [0] * color
-        for i in reversed(range(houses)):
-            min1 = float("inf")
-            min2 = float("inf")
-            min_idx = -1
-            for c in range(color):
-                if prev[c] < min1:
-                    min2 = min1
-                    min1 = prev[c]
-                    min_idx = c
-                elif prev[c] < min2:
-                    min2 = prev[c]
-            curr = [0] * color
-            for j in range(color):
-                if j != min_idx:
-                    curr[j] = costs[i][j] + min1
-                else:
-                    curr[j] = costs[i][j] + min2
-            prev = curr
-        return min(prev)
-   
-
-    return helper()  
-    
-    
-print(min_cost(costs))
-costs1 = [[5, 8, 6], [19, 14, 13], [7, 5, 12], [14, 5, 9]]
-print(min_cost(costs1))
+    def put(self, key:int, value:int) -> int:
+        if key in self.cache:
+            self._remove(self._remove(self.cache[key]))
+        node = Node(key, value)
+        self.cache[key] = node
+        self._insert_head(node)
+        if len(self.cache) > self.cap:
+            lru:Node = self.tail.prev
+            self._remove(lru)
+            del self.cache[lru.key]
