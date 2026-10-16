@@ -1,146 +1,75 @@
-import threading
-import time
 import sys
 import traceback
-from main import MessageBroker
 
-def test_fifo_ordering():
-    broker = MessageBroker(5)
-    for i in range(5):
-        broker.publish(f"msg-{i}")
-    
-    for i in range(5):
-        msg = broker.consume()
-        assert msg == f"msg-{i}", f"FIFO broken: expected msg-{i}, got {msg}"
+try:
+    from main import DatabaseConnection
+except ImportError as e:
+    print(f"FAIL: Could not import required classes: {e}")
+    sys.exit(1)
 
-def test_consume_blocks_when_empty():
-    broker = MessageBroker(5)
-    
-    start = time.time()
-    try:
-        broker.consume(timeout=0.2)
-        assert False, "Expected TimeoutError when consuming from empty broker"
-    except TimeoutError:
-        pass # Expected
-    elapsed = time.time() - start
-    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
+def setup_function():
+    DatabaseConnection.reset_instance()
 
-def test_publish_blocks_when_full():
-    broker = MessageBroker(1)
-    assert broker.publish("first") is True
-    
-    start = time.time()
-    result = broker.publish("second", timeout=0.2)
-    elapsed = time.time() - start
-    
-    assert result is False, "Expected publish to return False when full"
-    assert 0.15 <= elapsed <= 0.4, f"Timeout took {elapsed:.2f}s, expected ~0.2s"
+def test_same_instance_returned():
+    setup_function()
+    db1 = DatabaseConnection("postgres://prod")
+    db2 = DatabaseConnection("postgres://prod")
+    assert db1 is db2, "DatabaseConnection must return the exact same instance"
 
-def test_producer_consumer_wakeup():
-    broker = MessageBroker(1)
-    
-    # Test producer waking up consumer
-    result = []
-    def consumer():
-        try:
-            result.append(broker.consume(timeout=2.0))
-        except TimeoutError:
-            pass
-            
-    t = threading.Thread(target=consumer)
-    t.start()
-    time.sleep(0.1)
-    broker.publish("hello")
-    t.join(timeout=1.0)
-    assert result == ["hello"], "Consumer did not wake up and receive message"
-    
-    # Test consumer waking up producer
-    def producer():
-        broker.publish("blocked-msg", timeout=2.0)
-        
-    broker.publish("filling-msg") # fill the capacity
-    t2 = threading.Thread(target=producer)
-    t2.start()
-    time.sleep(0.1)
-    
-    msg1 = broker.consume()
-    t2.join(timeout=1.0)
-    msg2 = broker.consume()
-    
-    assert msg1 == "filling-msg"
-    assert msg2 == "blocked-msg", "Producer did not wake up and publish message"
+def test_initialization_stickiness():
+    setup_function()
+    db1 = DatabaseConnection("postgres://prod")
+    db2 = DatabaseConnection("mysql://staging")
+    assert db2.connection_string == "postgres://prod", "Initial connection_string should not be overwritten"
 
-def test_high_concurrency():
-    broker = MessageBroker(10)
-    producers_count = 10
-    consumers_count = 10
-    messages_per_producer = 100
+def test_query_execution_and_counting():
+    setup_function()
+    db = DatabaseConnection("sqlite://mydb")
+    assert db.get_query_count() == 0, "Initial query count should be 0"
     
-    consumed_messages = []
-    consumed_lock = threading.Lock()
-    barrier = threading.Barrier(producers_count + consumers_count)
+    res1 = db.execute_query("SELECT * FROM users")
+    assert res1 == "Executed: SELECT * FROM users on sqlite://mydb"
+    assert db.get_query_count() == 1
     
-    def producer(p_id):
-        barrier.wait(timeout=5.0)
-        for i in range(messages_per_producer):
-            broker.publish(f"p{p_id}-m{i}")
-            
-    def consumer():
-        barrier.wait(timeout=5.0)
-        for _ in range(messages_per_producer):
-            try:
-                msg = broker.consume(timeout=5.0)
-                with consumed_lock:
-                    consumed_messages.append(msg)
-            except TimeoutError:
-                break
+    db2 = DatabaseConnection()
+    res2 = db2.execute_query("UPDATE users SET active = 1")
+    assert res2 == "Executed: UPDATE users SET active = 1 on sqlite://mydb"
+    assert db.get_query_count() == 2
+    assert db2.get_query_count() == 2
 
-    threads = []
-    for i in range(producers_count):
-        t = threading.Thread(target=producer, args=(i,))
-        threads.append(t)
-        t.start()
-        
-    for _ in range(consumers_count):
-        t = threading.Thread(target=consumer)
-        threads.append(t)
-        t.start()
-        
-    for t in threads:
-        t.join(timeout=10.0)
-        assert not t.is_alive(), "A thread deadlocked or timed out"
-
-    assert len(consumed_messages) == producers_count * messages_per_producer, \
-        f"Expected {producers_count * messages_per_producer} messages, got {len(consumed_messages)}"
+def test_reset_instance():
+    setup_function()
+    db1 = DatabaseConnection("db1")
+    db1.execute_query("SELECT 1")
     
-    assert len(set(consumed_messages)) == len(consumed_messages), "Duplicate messages detected!"
+    DatabaseConnection.reset_instance()
+    
+    db2 = DatabaseConnection("db2")
+    assert db1 is not db2, "After reset, a new instance should be created"
+    assert db2.connection_string == "db2", "New instance should use new connection string"
+    assert db2.get_query_count() == 0, "New instance query count should start at 0"
 
-# --- Test Runner ---
-def run_tests():
+if __name__ == "__main__":
     tests = [
-        test_fifo_ordering,
-        test_consume_blocks_when_empty,
-        test_publish_blocks_when_full,
-        test_producer_consumer_wakeup,
-        test_high_concurrency
+        test_same_instance_returned,
+        test_initialization_stickiness,
+        test_query_execution_and_counting,
+        test_reset_instance
     ]
     
     passed = 0
     for test in tests:
         try:
             test()
-            print(f"✅ {test.__name__}")
+            print(f"PASS: {test.__name__}")
             passed += 1
-        except AssertionError as e:
-            print(f"❌ {test.__name__} FAILED: {e}")
         except Exception as e:
-            print(f"❌ {test.__name__} CRASHED:")
-            traceback.print_exc()
-
-    print(f"\n{passed}/{len(tests)} passed.")
+            print(f"FAIL: {test.__name__}")
+            print(f"      {type(e).__name__}: {e}")
+            traceback.print_exc(limit=-1, file=sys.stdout)
+            
+    print(f"\nSummary: {passed}/{len(tests)} passed.")
     if passed < len(tests):
         sys.exit(1)
-    sys.exit(0)
-
-if __name__ == "__main__":
-    run_tests()
+    else:
+        sys.exit(0)
