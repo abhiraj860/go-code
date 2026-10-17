@@ -1,22 +1,29 @@
 from abc import ABC, abstractmethod
-import copy
 
-class Prototype(ABC):
-    @abstractmethod
-    def clone(self) -> 'Prototype':
+class PaymentStrategy(ABC):
+    @abstractmethod        
+    def pay(amount: float):
         pass
 
-class NPC(Prototype):
-    def __init__(self, name: str, health: int, inventory: list):
-        if health < 0:
-            raise ValueError("Health cannot be negative")
-        self.name = name
-        self.health = health
-        self.inventory = inventory
+class Checkout:
+    def __init__(self, paymentMethod: PaymentStrategy):
+        self.paymentMethod = paymentMethod
+        
+    def amount_paid(self, amount):
+        return self.paymentMethod.pay(amount)
+        
+class CreditCard(PaymentStrategy):
+    def pay(self, amount):
+        return f"Paid amount {amount} through credit card"
+    
+class PayPal(PaymentStrategy):
+    def pay(self, amount):
+        return f"Paid amount {amount} through PayPal"
+    
 
-    def clone(self) -> 'NPC':
-        return copy.deepcopy(self)        
+ch = Checkout(CreditCard())
+print(ch.amount_paid(565.565))
 
-    def add_item(self, item: str) -> None:
-        self.inventory.append(item)
-        return
+ch2 = Checkout(PayPal())
+print(ch2.amount_paid(676.5))
+        
