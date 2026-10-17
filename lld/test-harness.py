@@ -2,60 +2,51 @@ import sys
 import traceback
 
 try:
-    from main import (
-        EmailNotificationService, SMSNotificationService,
-        EmailNotification, SMSNotification, Notification
-    )
+    from main import NPC, Prototype
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def test_email_factory_creates_email_notification():
-    service = EmailNotificationService()
-    notif = service.create_notification()
-    assert isinstance(notif, EmailNotification), "Factory should create EmailNotification"
-    assert isinstance(notif, Notification), "EmailNotification should inherit from Notification"
+def test_clone_creates_new_instance():
+    goblin_archetype = NPC("Goblin", 100, ["Dagger", "Health Potion"])
+    spawned_goblin = goblin_archetype.clone()
+    
+    assert isinstance(spawned_goblin, NPC), "Clone must be an instance of NPC"
+    assert spawned_goblin is not goblin_archetype, "Clone must be a entirely new object in memory"
 
-def test_sms_factory_creates_sms_notification():
-    service = SMSNotificationService()
-    notif = service.create_notification()
-    assert isinstance(notif, SMSNotification), "Factory should create SMSNotification"
-    assert isinstance(notif, Notification), "SMSNotification should inherit from Notification"
+def test_clone_deep_copy_inventory():
+    goblin_archetype = NPC("Goblin", 100, ["Dagger"])
+    spawned_goblin = goblin_archetype.clone()
+    
+    spawned_goblin.add_item("Stolen Gold")
+    
+    assert "Stolen Gold" in spawned_goblin.inventory, "Clone should have the new item"
+    assert "Stolen Gold" not in goblin_archetype.inventory, "Original archetype's inventory MUST NOT be affected by clone modifications"
 
-def test_email_notification_send_format():
-    service = EmailNotificationService()
-    res = service.send_notification("Welcome aboard!", "alice@example.com")
-    assert res == "Email sent to alice@example.com: Welcome aboard!", f"Unexpected format: {res}"
+def test_clone_primitive_independence():
+    goblin_archetype = NPC("Goblin", 100, [])
+    spawned_goblin = goblin_archetype.clone()
+    
+    spawned_goblin.health -= 50
+    spawned_goblin.name = "Wounded Goblin"
+    
+    assert goblin_archetype.health == 100, "Original archetype health should remain unchanged"
+    assert goblin_archetype.name == "Goblin", "Original archetype name should remain unchanged"
+    assert spawned_goblin.health == 50, "Clone health should be updated"
 
-def test_sms_notification_send_format():
-    service = SMSNotificationService()
-    res = service.send_notification("Your OTP is 1234", "+15550199")
-    assert res == "SMS sent to +15550199: Your OTP is 1234", f"Unexpected format: {res}"
-
-def test_empty_recipient_raises_value_error():
-    service = EmailNotificationService()
+def test_health_validation():
     try:
-        service.send_notification("Hello", "  ")
-        assert False, "Should raise ValueError for empty/whitespace recipient"
-    except ValueError:
-        pass
-
-def test_empty_message_raises_value_error():
-    service = SMSNotificationService()
-    try:
-        service.send_notification("", "+15550199")
-        assert False, "Should raise ValueError for empty message"
+        NPC("Zombie", -10, [])
+        assert False, "Should raise ValueError for negative health"
     except ValueError:
         pass
 
 if __name__ == "__main__":
     tests = [
-        test_email_factory_creates_email_notification,
-        test_sms_factory_creates_sms_notification,
-        test_email_notification_send_format,
-        test_sms_notification_send_format,
-        test_empty_recipient_raises_value_error,
-        test_empty_message_raises_value_error
+        test_clone_creates_new_instance,
+        test_clone_deep_copy_inventory,
+        test_clone_primitive_independence,
+        test_health_validation
     ]
     
     passed = 0

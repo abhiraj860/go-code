@@ -1,36 +1,22 @@
 from abc import ABC, abstractmethod
+import copy
 
-class Notification(ABC):
+class Prototype(ABC):
     @abstractmethod
-    def send(self, message: str, recipient: str) -> str:
+    def clone(self) -> 'Prototype':
         pass
 
-class EmailNotification(Notification):
-    def send(self, message: str, recipient: str) -> str:
-        return f"Email sent to {recipient}: {message}"
+class NPC(Prototype):
+    def __init__(self, name: str, health: int, inventory: list):
+        if health < 0:
+            raise ValueError("Health cannot be negative")
+        self.name = name
+        self.health = health
+        self.inventory = inventory
 
-class SMSNotification(Notification):
-    def send(self, message: str, recipient: str) -> str:
-        return f"SMS sent to {recipient}: {message}"
+    def clone(self) -> 'NPC':
+        return copy.deepcopy(self)        
 
-class NotificationService(ABC):
-    @abstractmethod
-    def create_notification(self) -> Notification:
-        pass
-    
-    def send_notification(self, message: str, recipient: str) -> str:
-        if not message or not message.strip():
-            raise ValueError("Message cannot be empty") 
-        if not recipient or not recipient.strip():
-            raise ValueError("Recipiect cannot be empty")
-        notification = self.create_notification()
-        return notification.send(message, recipient)
-            
-
-class EmailNotificationService(NotificationService):
-    def create_notification(self) -> Notification:
-        return EmailNotification()
-
-class SMSNotificationService(NotificationService):
-    def create_notification(self) -> Notification:
-        return SMSNotification()
+    def add_item(self, item: str) -> None:
+        self.inventory.append(item)
+        return
