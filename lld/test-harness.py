@@ -2,67 +2,60 @@ import sys
 import traceback
 
 try:
-    from main import Projector, SoundSystem, StreamingDevice, HomeTheaterFacade
+    from main import (
+        EmailNotificationService, SMSNotificationService,
+        EmailNotification, SMSNotification, Notification
+    )
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def test_watch_movie_sequence():
-    projector = Projector()
-    sound = SoundSystem()
-    streaming = StreamingDevice()
-    facade = HomeTheaterFacade(projector, sound, streaming)
+def test_email_factory_creates_email_notification():
+    service = EmailNotificationService()
+    notif = service.create_notification()
+    assert isinstance(notif, EmailNotification), "Factory should create EmailNotification"
+    assert isinstance(notif, Notification), "EmailNotification should inherit from Notification"
 
-    logs = facade.watch_movie("Inception", 75)
+def test_sms_factory_creates_sms_notification():
+    service = SMSNotificationService()
+    notif = service.create_notification()
+    assert isinstance(notif, SMSNotification), "Factory should create SMSNotification"
+    assert isinstance(notif, Notification), "SMSNotification should inherit from Notification"
 
-    expected = [
-        "Projector powered on",
-        "Projector input set to HDMI 1",
-        "Sound system powered on",
-        "Sound system volume set to 75",
-        "Streaming device powered on",
-        "Playing 'Inception'"
-    ]
-    assert logs == expected, f"Sequence mismatch.\nGot: {logs}\nExpected: {expected}"
+def test_email_notification_send_format():
+    service = EmailNotificationService()
+    res = service.send_notification("Welcome aboard!", "alice@example.com")
+    assert res == "Email sent to alice@example.com: Welcome aboard!", f"Unexpected format: {res}"
 
-def test_watch_movie_volume_validation():
-    projector = Projector()
-    sound = SoundSystem()
-    streaming = StreamingDevice()
-    facade = HomeTheaterFacade(projector, sound, streaming)
+def test_sms_notification_send_format():
+    service = SMSNotificationService()
+    res = service.send_notification("Your OTP is 1234", "+15550199")
+    assert res == "SMS sent to +15550199: Your OTP is 1234", f"Unexpected format: {res}"
 
+def test_empty_recipient_raises_value_error():
+    service = EmailNotificationService()
     try:
-        facade.watch_movie("Inception", 150)
-        assert False, "Should have raised ValueError for volume > 100"
+        service.send_notification("Hello", "  ")
+        assert False, "Should raise ValueError for empty/whitespace recipient"
     except ValueError:
         pass
 
+def test_empty_message_raises_value_error():
+    service = SMSNotificationService()
     try:
-        facade.watch_movie("Inception", -10)
-        assert False, "Should have raised ValueError for volume < 0"
+        service.send_notification("", "+15550199")
+        assert False, "Should raise ValueError for empty message"
     except ValueError:
         pass
-
-def test_end_movie_sequence():
-    projector = Projector()
-    sound = SoundSystem()
-    streaming = StreamingDevice()
-    facade = HomeTheaterFacade(projector, sound, streaming)
-
-    logs = facade.end_movie()
-
-    expected = [
-        "Streaming device powered off",
-        "Sound system powered off",
-        "Projector powered off"
-    ]
-    assert logs == expected, f"Sequence mismatch.\nGot: {logs}\nExpected: {expected}"
 
 if __name__ == "__main__":
     tests = [
-        test_watch_movie_sequence,
-        test_watch_movie_volume_validation,
-        test_end_movie_sequence
+        test_email_factory_creates_email_notification,
+        test_sms_factory_creates_sms_notification,
+        test_email_notification_send_format,
+        test_sms_notification_send_format,
+        test_empty_recipient_raises_value_error,
+        test_empty_message_raises_value_error
     ]
     
     passed = 0
