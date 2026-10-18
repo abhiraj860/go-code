@@ -3,109 +3,81 @@ import traceback
 
 try:
     from main import (
-        MarketDataFeed, TradingBot, 
-        DipBuyerStrategy, MomentumStrategy
+        BaseAlert, PhoneAlertDecorator, PoliceAlertDecorator,
+        SecuritySystem, SecuritySystemBuilder
     )
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def setup_function():
-    MarketDataFeed.reset_instance()
+def test_decorator_chaining():
+    alert = BaseAlert()
+    alert = PoliceAlertDecorator(alert)
+    alert = PhoneAlertDecorator(alert)
+    assert alert.trigger() == "Siren, Police, Phone", f"Decorator output incorrect: {alert.trigger()}"
 
-def test_singleton_property():
-    setup_function()
-    feed1 = MarketDataFeed()
-    feed2 = MarketDataFeed()
-    assert feed1 is feed2, "MarketDataFeed must be a Singleton"
-
-def test_strategy_logic():
-    dip = DipBuyerStrategy(buy_threshold=50.0)
-    assert dip.analyze(49.9) == "BUY"
-    assert dip.analyze(50.0) == "HOLD"
+def test_state_machine_transitions():
+    system = SecuritySystem(BaseAlert())
     
-    mom = MomentumStrategy(sell_threshold=100.0)
-    assert mom.analyze(100.1) == "SELL"
-    assert mom.analyze(100.0) == "HOLD"
-
-def test_observer_subscription_management():
-    setup_function()
-    feed = MarketDataFeed()
-    bot = TradingBot("TestBot", DipBuyerStrategy(50.0))
+    # Initial state is Disarmed
+    assert system.disarm() == "Already disarmed"
+    assert system.trip_sensor() == "Ignored"
     
-    feed.subscribe(bot, "AAPL")
+    # Disarmed -> Armed
+    assert system.arm() == "System armed"
+    assert system.arm() == "Already armed"
+    
+    # Armed -> Triggered
+    assert system.trip_sensor() == "Siren"
+    assert system.trip_sensor() == "Already triggered"
+    assert system.arm() == "Cannot arm, system triggered"
+    
+    # Triggered -> Disarmed
+    assert system.disarm() == "System disarmed"
+    assert system.trip_sensor() == "Ignored"
+
+def test_builder_validation():
+    builder = SecuritySystemBuilder()
     
     try:
-        feed.subscribe(bot, "AAPL")
-        assert False, "Should raise ValueError on duplicate subscription to same symbol"
+        builder.add_phone_alert()
+        assert False, "Should raise ValueError when adding decorator without base alert"
     except ValueError:
         pass
         
-    feed.unsubscribe(bot, "AAPL")
-    
     try:
-        feed.unsubscribe(bot, "AAPL")
-        assert False, "Should raise KeyError when unsubscribing from symbol without subscription"
-    except KeyError:
+        builder.build()
+        assert False, "Should raise ValueError when building without base alert"
+    except ValueError:
         pass
 
 def test_end_to_end_integration():
-    setup_function()
-    feed = MarketDataFeed()
+    builder = SecuritySystemBuilder()
     
-    bot1 = TradingBot("Alice", DipBuyerStrategy(50.0))
-    bot2 = TradingBot("Bob", MomentumStrategy(100.0))
+    system = (builder.set_base_alert()
+                     .add_phone_alert()
+                     .add_police_alert()
+                     .build())
+                     
+    assert isinstance(system, SecuritySystem), "Builder must return a SecuritySystem"
     
-    feed.subscribe(bot1, "AAPL")
-    feed.subscribe(bot2, "AAPL")
-    feed.subscribe(bot1, "TSLA")
+    # System should start disarmed
+    assert system.trip_sensor() == "Ignored"
     
-    # Tick 1: AAPL at 40.0 (Alice buys, Bob holds)
-    feed.publish_price("AAPL", 40.0)
+    # Arm and trigger
+    system.arm()
+    result = system.trip_sensor()
     
-    # Tick 2: TSLA at 30.0 (Alice buys, Bob not subscribed)
-    feed.publish_price("TSLA", 30.0)
-    
-    # Tick 3: AAPL at 105.0 (Alice holds, Bob sells)
-    feed.publish_price("AAPL", 105.0)
-    
-    # Assert Alice's history
-    expected_alice = [
-        ("AAPL", "BUY", 40.0),
-        ("TSLA", "BUY", 30.0),
-        ("AAPL", "HOLD", 105.0)
-    ]
-    assert bot1.trade_history == expected_alice, f"Alice history mismatch: {bot1.trade_history}"
-    
-    # Assert Bob's history
-    expected_bob = [
-        ("AAPL", "HOLD", 40.0),
-        ("AAPL", "SELL", 105.0)
-    ]
-    assert bot2.trade_history == expected_bob, f"Bob history mismatch: {bot2.trade_history}"
-
-def test_dynamic_strategy_swap():
-    setup_function()
-    feed = MarketDataFeed()
-    bot = TradingBot("Charlie", DipBuyerStrategy(50.0))
-    
-    feed.subscribe(bot, "GOOG")
-    feed.publish_price("GOOG", 40.0) # BUY
-    
-    bot.set_strategy(MomentumStrategy(100.0))
-    feed.publish_price("GOOG", 150.0) # SELL
-    
-    expected = [("GOOG", "BUY", 40.0), ("GOOG", "SELL", 150.0)]
-    assert bot.trade_history == expected, f"Dynamic swap mismatch: {bot.trade_history}"
-
+    # Verify State interacted with the Builder's Decorator chain
+    expected = "Siren, Phone, Police"
+    assert result == expected, f"End-to-end integration failed. Expected '{expected}', got '{result}'"
 
 if __name__ == "__main__":
     tests = [
-        test_singleton_property,
-        test_strategy_logic,
-        test_observer_subscription_management,
-        test_end_to_end_integration,
-        test_dynamic_strategy_swap
+        test_decorator_chaining,
+        test_state_machine_transitions,
+        test_builder_validation,
+        test_end_to_end_integration
     ]
     
     passed = 0

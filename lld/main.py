@@ -1,87 +1,121 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Dict
 
-# --- STRATEGY ---
-class TradingStrategy(ABC):
+# --- DECORATOR ---
+class Alert(ABC):
     @abstractmethod
-    def analyze(self, price: float) -> str:
-        """Returns 'BUY', 'SELL', or 'HOLD'."""
+    def trigger(self) -> str:
         pass
 
-class DipBuyerStrategy(TradingStrategy):
-    def __init__(self, buy_threshold: float):
-        self.buy_threshold = buy_threshold
+class BaseAlert(Alert):
+    def trigger(self) -> str:
+        return "Siren"
 
-    def analyze(self, price: float) -> str:
-        if price < self.buy_threshold:
-            return "BUY"
-        return "HOLD"
+class AlertDecorator(Alert):
+    def __init__(self, wrapped: Alert):
+        self.wrapped = wrapped
 
-class MomentumStrategy(TradingStrategy):
-    def __init__(self, sell_threshold: float):
-        self.sell_threshold = sell_threshold
-        
-    def analyze(self, price: float) -> str:
-        if price > self.sell_threshold:
-            return "SELL"
-        return "HOLD"
+class PhoneAlertDecorator(AlertDecorator):
+    def trigger(self) -> str:
+        return self.wrapped.trigger() + ", Phone"
 
-# --- OBSERVER ---
-class Observer(ABC):
+class PoliceAlertDecorator(AlertDecorator):
+    def trigger(self) -> str:
+        return self.wrapped.trigger() + ", Police"
+
+# --- STATE MACHINE ---
+class SystemState(ABC):
     @abstractmethod
-    def update(self, symbol: str, price: float) -> None:
+    def arm(self) -> str:
+        pass
+    @abstractmethod
+    def disarm(self) -> str:
+        pass
+    @abstractmethod
+    def trip_sensor(self) -> str:
         pass
 
-class TradingBot(Observer):
-    def __init__(self, name: str, strategy: TradingStrategy):
-        self.name = name
-        self.strategy = strategy
-        # Must store action history as (symbol, action, price)
-        self.trade_history: List[Tuple[str, str, float]] = []
+class SecuritySystem:
+    def __init__(self, alert: Alert):
+        self.alert = alert
+        self.state = DisarmedState(self)
         
-    def set_strategy(self, strategy: TradingStrategy) -> None:
-        self.strategy = strategy
+    def set_state(self, state: SystemState) -> None:
+        self.state = state
 
-    def update(self, symbol: str, price: float) -> None:
-        self.trade_history.append((symbol, self.strategy.analyze(price), price))
+    def arm(self) -> str:
+        return self.state.arm()
+        
+    def disarm(self) -> str:
+        return self.state.disarm()
+        
+    def trip_sensor(self) -> str:
+        return self.state.trip_sensor()
 
-# --- SINGLETON (Subject) ---
-class MarketDataFeed:
-    _instance = None
-    _initialised = False
+class DisarmedState(SystemState):
+    def __init__(self, system: SecuritySystem): 
+        self.system = system
+        
+    def arm(self) -> str: 
+        self.system.set_state(ArmedState(self.system))
+        return "System armed"
+
+    def disarm(self) -> str: 
+        return "Already disarmed"
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def trip_sensor(self) -> str: 
+        return "Ignored"
 
+class ArmedState(SystemState):
+    def __init__(self, system: SecuritySystem):
+        self.system = system
+
+    def arm(self) -> str:
+        return "Already armed"
+    
+    def disarm(self) -> str:
+        self.system.set_state(DisarmedState(self.system))
+        return "System disarmed"
+        
+    def trip_sensor(self) -> str: 
+        self.system.set_state(TriggeredState(self.system))
+        return self.system.alert.trigger()
+        
+class TriggeredState(SystemState):
+    def __init__(self, system: SecuritySystem): 
+        self.system = system
+        
+    def arm(self) -> str:
+        return "Cannot arm, system triggered"
+    
+    def disarm(self) -> str: 
+        self.system.set_state(DisarmedState(self.system))
+        return "System disarmed"
+    
+    def trip_sensor(self) -> str:
+        return "Already triggered"
+
+# --- BUILDER ---
+class SecuritySystemBuilder:
     def __init__(self):
-        if MarketDataFeed._initialised:
-            return
-        self.observer_list:dict[str, list[Observer]] = {}
-        MarketDataFeed._initialised = True
-
-    def subscribe(self, bot: Observer, symbol: str) -> None:
-        if symbol in self.observer_list and bot in self.observer_list[symbol]:
-            raise ValueError("Bot and Symbol already present")
-        if symbol in self.observer_list:
-            self.observer_list[symbol].append(bot)
-            return
-        self.observer_list[symbol] = [bot]
-        return 
-            
+        self.alert = None
         
-    def unsubscribe(self, bot: Observer, symbol: str) -> None:
-        if symbol not in self.observer_list or bot not in self.observer_list[symbol]:
-            raise KeyError("Bot not subscribed to the symbol")
-        self.observer_list[symbol].remove(bot)
-        return 
+    def set_base_alert(self) -> 'SecuritySystemBuilder':
+        self.alert = BaseAlert()
+        return self
         
-    def publish_price(self, symbol: str, price: float) -> None:
-        for bots in self.observer_list.get(symbol, []):
-            bots.update(symbol, price)
-
-    @classmethod
-    def reset_instance(cls) -> None:
-        MarketDataFeed._instance = None
-        MarketDataFeed._initialised = False
+    def add_phone_alert(self) -> 'SecuritySystemBuilder':
+        if self.alert is None:
+            raise ValueError("Please add base alert")
+        self.alert = PhoneAlertDecorator(self.alert)
+        return self
+        
+    def add_police_alert(self) -> 'SecuritySystemBuilder':
+        if self.alert is None:
+            raise ValueError("Please add base alert")
+        self.alert = PoliceAlertDecorator(self.alert)
+        return self
+        
+    def build(self) -> SecuritySystem:
+        if self.alert is None:
+            raise ValueError("Cannot build system without a base alert")
+        return SecuritySystem(self.alert)
