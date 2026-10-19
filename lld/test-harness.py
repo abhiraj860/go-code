@@ -3,80 +3,70 @@ import traceback
 
 try:
     from main import (
-        BaseAlert, PhoneAlertDecorator, PoliceAlertDecorator,
-        SecuritySystem, SecuritySystemBuilder
+        LegacyPDFTool, HTMLWriter, PDFWriterAdapter,
+        StandardWriterFactory, DocumentConversionFacade, DocumentWriter
     )
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def test_decorator_chaining():
-    alert = BaseAlert()
-    alert = PoliceAlertDecorator(alert)
-    alert = PhoneAlertDecorator(alert)
-    assert alert.trigger() == "Siren, Police, Phone", f"Decorator output incorrect: {alert.trigger()}"
+def test_html_writer():
+    writer = HTMLWriter()
+    assert writer.write("Hello") == "<html>Hello</html>", "HTMLWriter output incorrect"
 
-def test_state_machine_transitions():
-    system = SecuritySystem(BaseAlert())
+def test_adapter_delegation():
+    legacy_tool = LegacyPDFTool()
+    adapter = PDFWriterAdapter(legacy_tool)
     
-    # Initial state is Disarmed
-    assert system.disarm() == "Already disarmed"
-    assert system.trip_sensor() == "Ignored"
-    
-    # Disarmed -> Armed
-    assert system.arm() == "System armed"
-    assert system.arm() == "Already armed"
-    
-    # Armed -> Triggered
-    assert system.trip_sensor() == "Siren"
-    assert system.trip_sensor() == "Already triggered"
-    assert system.arm() == "Cannot arm, system triggered"
-    
-    # Triggered -> Disarmed
-    assert system.disarm() == "System disarmed"
-    assert system.trip_sensor() == "Ignored"
+    assert isinstance(adapter, DocumentWriter), "Adapter must implement DocumentWriter"
+    result = adapter.write("Secret Report")
+    assert result == "PDF[System]: Secret Report", f"Adapter output incorrect: {result}"
 
-def test_builder_validation():
-    builder = SecuritySystemBuilder()
+def test_factory_method_creation():
+    factory = StandardWriterFactory()
+    
+    html_writer = factory.create_writer("html")
+    assert isinstance(html_writer, HTMLWriter), "Factory should create HTMLWriter for 'html'"
+    
+    pdf_writer = factory.create_writer("pdf")
+    assert isinstance(pdf_writer, PDFWriterAdapter), "Factory should create PDFWriterAdapter for 'pdf'"
     
     try:
-        builder.add_phone_alert()
-        assert False, "Should raise ValueError when adding decorator without base alert"
+        factory.create_writer("docx")
+        assert False, "Factory should raise ValueError for unsupported format"
     except ValueError:
         pass
-        
+
+def test_facade_validation():
+    factory = StandardWriterFactory()
+    facade = DocumentConversionFacade(factory)
+    
     try:
-        builder.build()
-        assert False, "Should raise ValueError when building without base alert"
+        facade.process_document("   ", "html")
+        assert False, "Facade should raise ValueError for empty/whitespace content"
     except ValueError:
         pass
 
 def test_end_to_end_integration():
-    builder = SecuritySystemBuilder()
+    factory = StandardWriterFactory()
+    facade = DocumentConversionFacade(factory)
     
-    system = (builder.set_base_alert()
-                     .add_phone_alert()
-                     .add_police_alert()
-                     .build())
-                     
-    assert isinstance(system, SecuritySystem), "Builder must return a SecuritySystem"
+    # Test through HTML path
+    html_res = facade.process_document("My Page", "html")
+    expected_html = "Facade processed: <html>My Page</html>"
+    assert html_res == expected_html, f"Expected '{expected_html}', got '{html_res}'"
     
-    # System should start disarmed
-    assert system.trip_sensor() == "Ignored"
-    
-    # Arm and trigger
-    system.arm()
-    result = system.trip_sensor()
-    
-    # Verify State interacted with the Builder's Decorator chain
-    expected = "Siren, Phone, Police"
-    assert result == expected, f"End-to-end integration failed. Expected '{expected}', got '{result}'"
+    # Test through Factory -> Adapter -> Legacy path
+    pdf_res = facade.process_document("My Report", "pdf")
+    expected_pdf = "Facade processed: PDF[System]: My Report"
+    assert pdf_res == expected_pdf, f"Expected '{expected_pdf}', got '{pdf_res}'"
 
 if __name__ == "__main__":
     tests = [
-        test_decorator_chaining,
-        test_state_machine_transitions,
-        test_builder_validation,
+        test_html_writer,
+        test_adapter_delegation,
+        test_factory_method_creation,
+        test_facade_validation,
         test_end_to_end_integration
     ]
     

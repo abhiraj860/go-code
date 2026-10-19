@@ -1,121 +1,50 @@
 from abc import ABC, abstractmethod
 
-# --- DECORATOR ---
-class Alert(ABC):
+# --- THE LEGACY TOOL (Adaptee - DO NOT MODIFY) ---
+class LegacyPDFTool:
+    def generate_pdf(self, content: str, metadata: dict) -> str:
+        return f"PDF[{metadata.get('author', 'Unknown')}]: {content}"
+
+# --- STANDARD INTERFACE ---
+class DocumentWriter(ABC):
     @abstractmethod
-    def trigger(self) -> str:
+    def write(self, text: str) -> str:
         pass
 
-class BaseAlert(Alert):
-    def trigger(self) -> str:
-        return "Siren"
+class HTMLWriter(DocumentWriter):
+    def write(self, text: str) -> str:
+        return f"<html>{text}</html>"
 
-class AlertDecorator(Alert):
-    def __init__(self, wrapped: Alert):
-        self.wrapped = wrapped
+# --- ADAPTER ---
+class PDFWriterAdapter(DocumentWriter):
+    def __init__(self, pdf_tool: LegacyPDFTool):
+        self.pdf_tool = pdf_tool
+        
+    def write(self, text: str) -> str:
+        return self.pdf_tool.generate_pdf(text, {"author": "System"})        
 
-class PhoneAlertDecorator(AlertDecorator):
-    def trigger(self) -> str:
-        return self.wrapped.trigger() + ", Phone"
-
-class PoliceAlertDecorator(AlertDecorator):
-    def trigger(self) -> str:
-        return self.wrapped.trigger() + ", Police"
-
-# --- STATE MACHINE ---
-class SystemState(ABC):
+# --- FACTORY METHOD ---
+class WriterFactory(ABC):
     @abstractmethod
-    def arm(self) -> str:
-        pass
-    @abstractmethod
-    def disarm(self) -> str:
-        pass
-    @abstractmethod
-    def trip_sensor(self) -> str:
+    def create_writer(self, format_type: str) -> DocumentWriter:
         pass
 
-class SecuritySystem:
-    def __init__(self, alert: Alert):
-        self.alert = alert
-        self.state = DisarmedState(self)
-        
-    def set_state(self, state: SystemState) -> None:
-        self.state = state
+class StandardWriterFactory(WriterFactory):
+    def create_writer(self, format_type: str) -> DocumentWriter:
+        if format_type == "html":
+            return HTMLWriter()
+        elif format_type == "pdf":
+            return PDFWriterAdapter(LegacyPDFTool())
+        else:
+            raise ValueError("Unsupported format")
 
-    def arm(self) -> str:
-        return self.state.arm()
-        
-    def disarm(self) -> str:
-        return self.state.disarm()
-        
-    def trip_sensor(self) -> str:
-        return self.state.trip_sensor()
+# --- FACADE ---
+class DocumentConversionFacade:
+    def __init__(self, factory: WriterFactory):
+        self.factory = factory
 
-class DisarmedState(SystemState):
-    def __init__(self, system: SecuritySystem): 
-        self.system = system
-        
-    def arm(self) -> str: 
-        self.system.set_state(ArmedState(self.system))
-        return "System armed"
-
-    def disarm(self) -> str: 
-        return "Already disarmed"
-    
-    def trip_sensor(self) -> str: 
-        return "Ignored"
-
-class ArmedState(SystemState):
-    def __init__(self, system: SecuritySystem):
-        self.system = system
-
-    def arm(self) -> str:
-        return "Already armed"
-    
-    def disarm(self) -> str:
-        self.system.set_state(DisarmedState(self.system))
-        return "System disarmed"
-        
-    def trip_sensor(self) -> str: 
-        self.system.set_state(TriggeredState(self.system))
-        return self.system.alert.trigger()
-        
-class TriggeredState(SystemState):
-    def __init__(self, system: SecuritySystem): 
-        self.system = system
-        
-    def arm(self) -> str:
-        return "Cannot arm, system triggered"
-    
-    def disarm(self) -> str: 
-        self.system.set_state(DisarmedState(self.system))
-        return "System disarmed"
-    
-    def trip_sensor(self) -> str:
-        return "Already triggered"
-
-# --- BUILDER ---
-class SecuritySystemBuilder:
-    def __init__(self):
-        self.alert = None
-        
-    def set_base_alert(self) -> 'SecuritySystemBuilder':
-        self.alert = BaseAlert()
-        return self
-        
-    def add_phone_alert(self) -> 'SecuritySystemBuilder':
-        if self.alert is None:
-            raise ValueError("Please add base alert")
-        self.alert = PhoneAlertDecorator(self.alert)
-        return self
-        
-    def add_police_alert(self) -> 'SecuritySystemBuilder':
-        if self.alert is None:
-            raise ValueError("Please add base alert")
-        self.alert = PoliceAlertDecorator(self.alert)
-        return self
-        
-    def build(self) -> SecuritySystem:
-        if self.alert is None:
-            raise ValueError("Cannot build system without a base alert")
-        return SecuritySystem(self.alert)
+    def process_document(self, content: str, format_type: str) -> str:
+        if content.strip() == "":
+            raise ValueError("Empty whitespace")
+        writer = self.factory.create_writer(format_type).write(content)
+        return "Facade processed: " + writer
