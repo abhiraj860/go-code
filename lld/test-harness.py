@@ -3,71 +3,91 @@ import traceback
 
 try:
     from main import (
-        LegacyPDFTool, HTMLWriter, PDFWriterAdapter,
-        StandardWriterFactory, DocumentConversionFacade, DocumentWriter
+        UIComponent, ButtonComponent, 
+        PaddingDecorator, ShadowDecorator, ComponentRegistry
     )
 except ImportError as e:
     print(f"FAIL: Could not import required classes: {e}")
     sys.exit(1)
 
-def test_html_writer():
-    writer = HTMLWriter()
-    assert writer.write("Hello") == "<html>Hello</html>", "HTMLWriter output incorrect"
+def setup_function():
+    ComponentRegistry.reset_instance()
 
-def test_adapter_delegation():
-    legacy_tool = LegacyPDFTool()
-    adapter = PDFWriterAdapter(legacy_tool)
-    
-    assert isinstance(adapter, DocumentWriter), "Adapter must implement DocumentWriter"
-    result = adapter.write("Secret Report")
-    assert result == "PDF[System]: Secret Report", f"Adapter output incorrect: {result}"
+def test_singleton_registry():
+    setup_function()
+    reg1 = ComponentRegistry()
+    reg2 = ComponentRegistry()
+    assert reg1 is reg2, "ComponentRegistry must be a singleton"
 
-def test_factory_method_creation():
-    factory = StandardWriterFactory()
+def test_prototype_deep_copy():
+    btn = ButtonComponent("Save", {"color": "blue"})
+    cloned_btn = btn.clone()
     
-    html_writer = factory.create_writer("html")
-    assert isinstance(html_writer, HTMLWriter), "Factory should create HTMLWriter for 'html'"
+    assert btn is not cloned_btn, "Clone must return a new instance"
+    assert btn.render() == "[Button: Save]"
     
-    pdf_writer = factory.create_writer("pdf")
-    assert isinstance(pdf_writer, PDFWriterAdapter), "Factory should create PDFWriterAdapter for 'pdf'"
-    
-    try:
-        factory.create_writer("docx")
-        assert False, "Factory should raise ValueError for unsupported format"
-    except ValueError:
-        pass
+    # Mutate clone's dict
+    cloned_btn.metadata["color"] = "red"
+    assert btn.metadata["color"] == "blue", "Original metadata must not be affected by clone mutation"
 
-def test_facade_validation():
-    factory = StandardWriterFactory()
-    facade = DocumentConversionFacade(factory)
+def test_decorator_rendering():
+    btn = ButtonComponent("Cancel", {})
+    padded = PaddingDecorator(btn)
+    shadowed_padded = ShadowDecorator(padded)
     
-    try:
-        facade.process_document("   ", "html")
-        assert False, "Facade should raise ValueError for empty/whitespace content"
-    except ValueError:
-        pass
+    assert shadowed_padded.render() == "shadow(padding([Button: Cancel]))"
 
-def test_end_to_end_integration():
-    factory = StandardWriterFactory()
-    facade = DocumentConversionFacade(factory)
+def test_registry_integration():
+    setup_function()
+    registry = ComponentRegistry()
     
-    # Test through HTML path
-    html_res = facade.process_document("My Page", "html")
-    expected_html = "Facade processed: <html>My Page</html>"
-    assert html_res == expected_html, f"Expected '{expected_html}', got '{html_res}'"
+    # Register a plain button
+    btn = ButtonComponent("Submit", {"theme": "dark"})
+    registry.register("btn_primary", btn)
     
-    # Test through Factory -> Adapter -> Legacy path
-    pdf_res = facade.process_document("My Report", "pdf")
-    expected_pdf = "Facade processed: PDF[System]: My Report"
-    assert pdf_res == expected_pdf, f"Expected '{expected_pdf}', got '{pdf_res}'"
+    # Fetch clone
+    instance1 = registry.create_instance("btn_primary")
+    assert instance1 is not btn, "Registry must return a clone, not the original reference"
+    
+    # Modify clone, ensure registry template is safe
+    instance1.metadata["theme"] = "light"
+    template = registry.create_instance("btn_primary")
+    assert template.metadata["theme"] == "dark", "Registry template was corrupted"
+
+def test_decorated_prototype_cloning():
+    setup_function()
+    registry = ComponentRegistry()
+    
+    # Create a complex, decorated base component
+    btn = ButtonComponent("Alert", {"priority": "high"})
+    complex_component = ShadowDecorator(PaddingDecorator(btn))
+    
+    # Register the entire decorated stack
+    registry.register("alert_widget", complex_component)
+    
+    # Fetch a clone of the entire stack
+    widget = registry.create_instance("alert_widget")
+    
+    assert isinstance(widget, ShadowDecorator), "Clone should maintain decorator structure"
+    assert widget.render() == "shadow(padding([Button: Alert]))"
+    
+    # Because of deep copy, we should be able to dig into the clone's wrapper and mutate safely
+    # widget -> Shadow -> Padding -> Button
+    cloned_inner_btn = widget.wrapped.wrapped
+    cloned_inner_btn.metadata["priority"] = "low"
+    
+    # Original template should remain 'high'
+    master_template = registry.create_instance("alert_widget")
+    master_inner_btn = master_template.wrapped.wrapped
+    assert master_inner_btn.metadata["priority"] == "high", "Decorated clone mutation corrupted master template"
 
 if __name__ == "__main__":
     tests = [
-        test_html_writer,
-        test_adapter_delegation,
-        test_factory_method_creation,
-        test_facade_validation,
-        test_end_to_end_integration
+        test_singleton_registry,
+        test_prototype_deep_copy,
+        test_decorator_rendering,
+        test_registry_integration,
+        test_decorated_prototype_cloning
     ]
     
     passed = 0
