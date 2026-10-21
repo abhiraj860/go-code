@@ -1,80 +1,47 @@
-from abc import ABC, abstractmethod
-import copy
+import threading
 
-# --- PROTOTYPE & DECORATOR BASE ---
-class UIComponent(ABC):
-    @abstractmethod
-    def render(self) -> str:
-        pass
-        
-    @abstractmethod
-    def clone(self) -> 'UIComponent':
-        pass
+class AtomicInteger:
+    def __init__(self, initial_value: int = 0):
+        self.value = initial_value
+        self._locks = threading.Lock()
 
-# --- CONCRETE PROTOTYPES ---
-class ButtonComponent(UIComponent):
-    def __init__(self, label: str, metadata: dict):
-        # Store label and metadata
-        self.label = label
-        self.metadata = metadata
-        
-    def render(self) -> str:
-        return f"[Button: {self.label}]"
-        
-    def clone(self) -> 'ButtonComponent':
-        cloned = copy.deepcopy(self)
-        return cloned
+    def get(self) -> int:
+        with self._locks:
+            return self.value
 
-# --- DECORATORS ---
-class ComponentDecorator(UIComponent):
-    def __init__(self, wrapped: UIComponent):
-        self.wrapped: UIComponent = wrapped
+    def compare_and_set(self, expected: int, new_value: int) -> bool:
+        with self._locks:
+            if self.value == expected:
+                self.value = new_value
+                return True
+            return False
 
-class PaddingDecorator(ComponentDecorator):
-    def render(self) -> str:
-        return f"padding({self.wrapped.render()})"
-        
-    def clone(self) -> 'PaddingDecorator':
-        cloned = copy.deepcopy(self)
-        return cloned
+    def increment_and_get(self) -> int:
+        with self._locks:
+            self.value += 1
+            return self.value
 
-class ShadowDecorator(ComponentDecorator):
-    def render(self) -> str:
-        return f"shadow({self.wrapped.render()})"
-        
-    def clone(self) -> 'ShadowDecorator':
-        cloned = copy.deepcopy(self)
-        return cloned
+class EventBatcher:
+    def __init__(self, batch_size: int):
+        self.buffer = []
+        self.condition = threading.Condition()
+        self.total_submitted = AtomicInteger(0)
+        self.batch = batch_size
 
-# --- SINGLETON REGISTRY ---
-class ComponentRegistry:
-    _instance = None
-    _initialized = False    
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance =  super().__new__(cls)
-            return cls._instance
-        return cls._instance
-        
-    def __init__(self):
-        if ComponentRegistry._initialized:
-            return
-        self.diction = {}
-        ComponentRegistry._initialized = True
-        return 
-
-    def register(self, key: str, component: UIComponent) -> None:
-        self.diction[key] = component
-        return
-        
-    def create_instance(self, key: str) -> UIComponent:
-        if key in self.diction:
-            cloned = self.diction[key].clone()
-            return cloned
-        raise KeyError("The key does not exist")
-
-    @classmethod
-    def reset_instance(cls) -> None:
-        ComponentRegistry._instance = None
-        ComponentRegistry._initialized = False
+    def submit(self, event: str) -> None:
+        with self.condition:
+            self.buffer.append(event)            
+            self.total_submitted.increment_and_get()
+            if len(self.buffer) >= self.batch:
+                self.condition.notify_all()
+            
+            
+    def extract_batch(self, timeout: float) -> list[str]:
+        with self.condition:
+            self.condition.wait_for(lambda: len(self.buffer) >= self.batch, timeout=timeout)
+            if not self.buffer:
+                return []
+            batch = self.buffer[:]
+            self.buffer.clear()
+            return batch
+            
