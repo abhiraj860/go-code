@@ -51,13 +51,14 @@ class ThrottledQueryDispatcher:
         6. Return True.
         """
         with self._not_empty:
-            if self._not_empty.wait_for(lambda: len(self._queue) == 0, timeout = timeout):
+            if not self._not_empty.wait_for(lambda: len(self._queue) > 0, timeout = timeout):
                return False
             key = self._queue.popleft()
             self._not_full.notify()
              
         with self._semaphore:
             result = execute_fn(key)
+            
         with self._lock:
             self.dispatch[key] = result
         return True
