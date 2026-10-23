@@ -1,10 +1,10 @@
 import pytest 
-from main import SimpleLFU
+from main import LFUCache
 
 
 @pytest.fixture
 def cache():
-    return SimpleLFU(2)
+    return LFUCache(2)
 
 
 # --- basic behavior ---
