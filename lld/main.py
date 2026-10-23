@@ -1,29 +1,42 @@
-class SimpleLFU:
+from collections import defaultdict, OrderedDict
+
+class LFUCache:
     def __init__(self, capacity):
         self.capacity = capacity
         self.kv = {}
-        self.time = 0
+        self.freq = defaultdict(OrderedDict)
+        self.min_freq = 0
+
+    def _bump(self, k):
+        v, f = self.kv[k]
+        del self.freq[f][k]
         
-    def get(self, key):
-        if key not in self.kv:
+        self.freq[f + 1][k] = None
+        self.kv[k][1] = (f + 1)
+        if len(self.freq[f]) == 0:
+            del self.freq[f]
+            if self.min_freq == f:
+                self.min_freq += 1
+        return 
+   
+       
+    def get(self, k):
+        if k not in self.kv:
             return -1
-        self.time += 1
-        self.kv[key][1] += 1
-        self.kv[key][2] = self.time
-        return self.kv[key][0]
+        self._bump(k)
+        return self.kv[k][0]
     
-    def put(self, key, value):
-        self.time += 1
+    def put(self, k, v):
         if self.capacity == 0:
-            return
-        if key in self.kv:
-            self.kv[key][1] += 1
-            self.kv[key][2] = self.time 
-            self.kv[key][0] = value
-            return
+            return 
+        if k in self.kv:
+           self._bump(k)
+           self.kv[k][0] = v
+           return
         if len(self.kv) == self.capacity:
-            key1 = min(self.kv, key = lambda k: (self.kv[k][1], self.kv[k][2]), default = None)
-            self.kv.pop(key1, None)
-        self.kv[key] = [value, 1, self.time]            
+            min_freq_key, _ = self.freq[self.min_freq].popitem(last=False) 
+            del self.kv[min_freq_key]
+        self.kv[k] = [v, 1]
+        self.min_freq = 1
+        self.freq[self.min_freq][k] = None
         return
-    

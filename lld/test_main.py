@@ -89,13 +89,13 @@ def test_evicted_key_restarts_at_frequency_one(cache):
 
 # --- edge cases ---
 def test_capacity_zero_stores_nothing():
-    c = SimpleLFU(0)
+    c = LFUCache(0)
     c.put(1, 1)
     assert c.get(1) == -1
 
 
 def test_capacity_one_keeps_latest():
-    c = SimpleLFU(1)
+    c = LFUCache(1)
     c.put(1, 1)
     c.put(2, 2)
     assert c.get(1) == -1
