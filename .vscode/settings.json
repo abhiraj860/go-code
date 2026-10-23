@@ -1,0 +1,19 @@
+{
+  "python.defaultInterpreterPath": "/home/abhiraj/.local/share/uv/tools/pytest/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/lld",
+    "/home/abhiraj/.local/share/uv/tools/pytest/lib/python3.12/site-packages"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.cwd": "${workspaceFolder}/lld",
+  "python.testing.pytestArgs": [
+    "lld",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "files.exclude": {
+    "**/.vscode": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true
+  }
+}
