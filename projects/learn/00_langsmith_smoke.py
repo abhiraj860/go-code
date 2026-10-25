@@ -1,17 +1,22 @@
 from dotenv import load_dotenv
-
 load_dotenv()  # finds projects/.env by walking up from this file
 
-from langsmith import Client, traceable
+from deepagents import create_deep_agent
+from langchain.messages import HumanMessage
 
-# 1. Verify the key works
-client = Client()
-print(list(client.list_projects(limit=1)))  # errors here = bad key/endpoint
+EXAMPLE_QUERY = "How do I stream intermediate tool results from a subagent?"
 
-# 2. Send a test trace
-@traceable
-def ping(x: str) -> str:
-    return x.upper()
+baseline_agent = create_deep_agent(
+    model="openai:gpt-4.1-mini",
+    tools=[],
+    system_prompt=(
+        "You are a helpful LangChain documentation assistant. "
+        "Answer questions about LangChain APIs and patterns."
+    ),
+)
 
-ping("hello")
-client.flush()  # make sure it's sent before the script exits
+result = baseline_agent.invoke(
+    {"messages": [HumanMessage(content=EXAMPLE_QUERY)]}
+)
+
+print(result["messages"][-1].text)
