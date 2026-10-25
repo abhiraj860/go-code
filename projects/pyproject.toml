@@ -1,5 +1,5 @@
 [project]
-name = "langchain-langgraph"
+name = "projects"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -7,10 +7,15 @@ authors = [
     { name = "abhiraj", email = "abhiaditya860@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "deepagents>=0.7.32",
+    "langchain-openai>=1.7.2",
+    "langsmith>=0.14.12",
+    "python-dotenv>=1.2.4",
+]
 
 [project.scripts]
-langchain-langgraph = "langchain_langgraph:main"
+projects = "projects:main"
 
 [build-system]
 requires = ["uv_build>=0.13.5,<0.14.0"]
