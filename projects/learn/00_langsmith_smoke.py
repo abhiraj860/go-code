@@ -4,14 +4,13 @@ load_dotenv()  # finds projects/.env by walking up from this file
 from deepagents import create_deep_agent
 from langchain.messages import HumanMessage
 
-EXAMPLE_QUERY = "How do I stream intermediate tool results from a subagent?"
+EXAMPLE_QUERY = "What can you do?"
 
 baseline_agent = create_deep_agent(
-    model="openai:gpt-4.1-mini",
+    model="openai:gpt-6-luna",
     tools=[],
     system_prompt=(
-        "You are a helpful LangChain documentation assistant. "
-        "Answer questions about LangChain APIs and patterns."
+        "Which model are you?"
     ),
 )
 
