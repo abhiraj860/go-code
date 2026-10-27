@@ -1,2 +1,6 @@
 deepagents
 langsmith
+langchain-text-splitters
+requests
+numpy
+langchain[openai]
