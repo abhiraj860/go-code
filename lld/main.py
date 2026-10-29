@@ -1,39 +1,33 @@
-import time
+from typing import Callable
 from collections import defaultdict, deque
+import time
+import threading
 
-class FixedWindowCounter:
-    def __init__(self, limit, window, clock = time.monotonic):
-        self.limit = limit
-        self.window = window
-        self.clock = clock
-        self.counts = defaultdict(int) 
-        
-    def allow(self, key:str = "default"):
-        current_number =  self.clock() // self.window
-        current = self.counts[(key, current_number)]
-        if current >= self.limit:
-            return False
-        self.counts[(key, current_number)] += 1
-        return True
-    
-class SlidingWindowLog:
-    def __init__(self, limit, window, clock = time.monotonic):
-        self.limit = limit
+class RateLimiter:
+    def __init__(self, max_requests: int, window_sec: float,
+                 clock: Callable[[], float] = time.monotonic):
+        self.max_requests = max_requests
+        self.window_sec = window_sec
         self.clock = clock
         self.state = defaultdict(deque)
-        self.window = window
-    
-    def allow(self, key = "default"):
-        current_time = self.clock()
-        cut_off = current_time - self.window
-        timestamps = self.state[key]
-        while timestamps and timestamps[0] <= cut_off:
-            timestamps.popleft() 
-        count = len(timestamps)
-        if count >= self.limit:
-            return False
-        timestamps.append(current_time)
-        return True
-        
-        
-            
+        self.lock = threading.Lock()
+        self.last_sweep = clock()
+
+    def allow(self, user_id: str) -> bool:
+        with self.lock:
+            now = self.clock()
+            if now - self.last_sweep >= self.window_sec:
+                lists = []
+                for key, val in self.state.items():
+                    if len(val) == 0 or val[-1] <= now - self.window_sec:
+                        lists.append(key)
+                self.last_sweep = now
+                for key in lists:
+                    del self.state[key]
+            queue = self.state[user_id]
+            while queue and queue[0] <= now - self.window_sec:
+                queue.popleft()
+            if self.max_requests <= len(queue):
+                return False
+            queue.append(now)
+            return True
