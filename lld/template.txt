@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# REQUIREMENTS
+#
+# Example (Tic Tac Toe):
+#   1. Two players alternate placing X and O on a 3x3 grid.
+#   2. A player wins by completing a row, column, or diagonal.
+#   Out of Scope: UI, AI opponent, networking
+# ═══════════════════════════════════════════════════════════════════════════
+
+# [TODO] Write requirements here
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ENTITIES & RELATIONSHIPS
+#
+# Example (Tic Tac Toe):
+#   Game, Board, Player
+# ═══════════════════════════════════════════════════════════════════════════
+
+# [TODO] Define entities and relationships here
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLASS DESIGN
+#
+# Example (Tic Tac Toe):
+#   class Game:
+#     - board: Board
+#     - currentPlayer: Player
+#     + makeMove(row, col) -> bool
+# ═══════════════════════════════════════════════════════════════════════════
+
+# [TODO] Write class design here
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# IMPLEMENTATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+# [TODO] Write implementation here
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EXTENSIBILITY
+# ═══════════════════════════════════════════════════════════════════════════
+
+# [TODO] Describe extensibility here
