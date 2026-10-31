@@ -1,2 +1,14 @@
-def get_items(item_a: str, item_b: int, item_c: float, item_d: bool, item_e: bytes):
-    return item_a, item_b, item_c, item_d, item_e
+def process_items(prices: dict[str, float]):
+    for item_name, item_price in prices.items():
+        print(item_name)
+        print(item_price)
+        
+def process_items(item: str | int):
+    print(item)
+    
+def process_items(name: str | None = None):
+    if name is not None:
+        print(f"Hey {name}!")
+    else:
+        print("Hello World")
+    
