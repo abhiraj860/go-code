@@ -1,4 +1,7 @@
-from typing import Annotated
-def say_hello(name: Annotated[str, "this is just metadata"])->str:
-    return f"Hello {name}"
-    
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {"message": "Hello world"}

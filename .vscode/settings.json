@@ -3,7 +3,7 @@
   "python.analysis.extraPaths": [
     "${workspaceFolder}/lld",
     "/home/abhiraj/.local/share/uv/tools/pytest/lib/python3.12/site-packages",
-    "${workspaceFolder}/projects/.venv/lib/python3.12/site-packages"
+    "/home/abhiraj/golang-code/projects/.venv/lib/python3.12/site-packages"
   ],
   "python.testing.pytestEnabled": true,
   "python.testing.cwd": "${workspaceFolder}/lld",
