@@ -1,3 +1,3 @@
-arr = [["."] * 3] * 3
-arr[1][2] = "Q"
+arr = [1, 2, 3]
+arr.append(arr[-1])
 print(arr)
