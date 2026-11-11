@@ -1,3 +1,3 @@
-arr = [1, 2, 3]
-arr.append(arr[-1])
-print(arr)
+string = "abc"
+p = list(string)
+print(str(p))
