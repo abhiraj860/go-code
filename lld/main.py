@@ -1,26 +1,25 @@
-class Product:
-    def __init__(self, name, size, extra):
-        self.name = name
-        self.size = size
-        self.extra = extra
+import threading
 
-class ProductBuilder:
-    def __init__(self, name):
-        self.name = name
-        self.size = 0
-        self.extra = None
-
-    def set_size(self, size):
-        self.size = size
-        return self
+class Singleton:
+    _instance = None
+    _lock = threading.Lock()
     
-    def set_extra(self, extra):
-        self.extra = extra
-        return self
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
     
-    def build(self):
-        return Product(self.name, self.size, self.extra)
-    
-    
-p = ProductBuilder("Pizza").set_size(10).set_extra("cheese").build()
-print(p.name, p.size, p.extra)
+    def __init__(self):
+        if self._initialized:
+            return 
+        self._initialized = True
+        self.bookings = {}
+        
+a = Singleton()
+a.bookings["B1"] = "data"
+b = Singleton()
+print(a is b)
+print(b.bookings)
