@@ -1,5 +1,26 @@
-def get_full_name(first_name, last_name):
-    full_name = first_name.title() + " " + last_name.title()
-    return full_name
+from abc import ABC, abstractmethod
 
-print(get_full_name("john", "doe"))
+class Product(ABC):
+    @abstractmethod
+    def run(self): ...
+    
+class ProductA(Product):
+    def run(self):
+        print("A running")
+        
+class ProductB(Product):
+    def run(self):
+        print("B running")
+        
+class Factory:
+    @staticmethod
+    def create(kind):
+        if kind == "a":
+            return ProductA()
+        if kind == "b":
+            return ProductB()
+        raise Exception("Unknown type")
+    
+
+Factory.create("a").run()
+Factory.create("b").run()
