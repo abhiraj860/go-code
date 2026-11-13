@@ -1,26 +1,26 @@
-from abc import ABC, abstractmethod
+class Product:
+    def __init__(self, name, size, extra):
+        self.name = name
+        self.size = size
+        self.extra = extra
 
-class Product(ABC):
-    @abstractmethod
-    def run(self): ...
-    
-class ProductA(Product):
-    def run(self):
-        print("A running")
-        
-class ProductB(Product):
-    def run(self):
-        print("B running")
-        
-class Factory:
-    @staticmethod
-    def create(kind):
-        if kind == "a":
-            return ProductA()
-        if kind == "b":
-            return ProductB()
-        raise Exception("Unknown type")
-    
+class ProductBuilder:
+    def __init__(self, name):
+        self.name = name
+        self.size = 0
+        self.extra = None
 
-Factory.create("a").run()
-Factory.create("b").run()
+    def set_size(self, size):
+        self.size = size
+        return self
+    
+    def set_extra(self, extra):
+        self.extra = extra
+        return self
+    
+    def build(self):
+        return Product(self.name, self.size, self.extra)
+    
+    
+p = ProductBuilder("Pizza").set_size(10).set_extra("cheese").build()
+print(p.name, p.size, p.extra)
