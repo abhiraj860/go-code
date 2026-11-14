@@ -1,15 +1,23 @@
-import copy
+from abc import ABC, abstractmethod
 
-class Product:
-    def __init__(self, name, tags):
-        self.name = name
-        self.tags = tags
-
-    def clone(self):
-        return copy.deepcopy(self)
+class Item(ABC):
+    @abstractmethod
+    def cost(self): ...
     
-original = Product("basic", ["X"])
-p = original.clone()
-p.tags.append("y")
-print(original is p)
-print(original.tags, p.tags)
+class Coffee(Item):
+    def cost(self):
+        return 100
+    
+class Decorator(Item):
+    def __init__(self, item):
+        self.item = item
+
+class Milk(Decorator):
+    def cost(self):
+        return self.item.cost() + 20
+    
+class Sugar(Decorator):
+    def cost(self):
+        return self.item.cost() + 10
+    
+print(Milk(Sugar(Coffee())).cost())
