@@ -1,17 +1,24 @@
-import copy 
+from abc import ABC, abstractmethod
 
-class Product:
-    def __init__(self, name, tags):
-        self.name = name
-        self.tags = tags
-
-    def clone(self):
-        return copy.deepcopy(self)
+class Product(ABC):
+    @classmethod
+    def run(self):...
     
+class ProductA(Product):
+    def run(self):
+        print("A running")
+        
+class ProductB(Product):
+    def run(self):
+        print("B running")
+        
+class Factory:
+    @staticmethod
+    def create(kind):
+        if kind == "a":
+            return ProductA()
+        if kind == "b":
+            return ProductB()
+        raise Exception("Unknown type")
     
-    
-original = Product("basic", ["X"])
-p = original.clone()
-p.tags.append("y")
-print(original is p)
-print(original.tags, p.tags)
+Factory.create("b").run()
