@@ -1,40 +1,39 @@
-# Observer Patter
 from abc import ABC, abstractmethod
 
-class Observer(ABC):
+class State(ABC):
     @abstractmethod
-    def update(self): ...
-
-class EmailObserver(Observer):
-    def update(self, event):
-        print("Email event received", event)
+    def action1(self): ...
+    
+    @abstractmethod
+    def action2(self): ...
+    
+class StateA(State):
+    def action1(self, ctx):
+        print("State A transitioned to State B")
+        ctx.state = StateB()
         
-class SMSObserver(Observer):
-    def update(self, event):
-        print("SMS event received", event)
+    def action2(self, ctx):
+        raise ValueError("Cannot perform action A")
+    
+class StateB(State):
+    def action1(self, ctx):
+        raise ValueError("Connot perform action B")
+    def action2(self, ctx):
+        print("State B transitioned to State A")
+        ctx.state = StateA()
         
         
-class Subject:
+class Object:
     def __init__(self):
-        self.observers = []
+        self.state = StateA()
         
-    def subscribe(self, observer):
-        self.observers.append(observer)
+    def action1(self):
+        self.state.action1(self)
+    
+    def action2(self):
+        self.state.action2(self)
         
-    def unsubscribe(self, observer):
-        self.observers.remove(observer)
-        
-    def notify(self, event):
-        for obs in self.observers:
-            obs.update(event)
-            
-a = Subject()
-c = EmailObserver()
-a.subscribe(c)
-b = SMSObserver()
-a.subscribe(b)
-a.notify("Hello")
-a.unsubscribe(b)
-a.notify("Herer")
-a.unsubscribe(c)
-a. notify("rer")
+x = Object()
+x.action1()
+x.action2()
+x.action1()
