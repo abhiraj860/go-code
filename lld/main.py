@@ -1,18 +1,26 @@
 from abc import ABC, abstractmethod
 
-class Target(ABC):
+class Strategy(ABC):
     @abstractmethod
-    def request(self): ...
+    def execute(self, x): ...
     
-class OldService:
-    def old_request(self):
-        print("old service called")
-        
-class Adapter(Target):
-    def __init__(self, old):
-        self.old = old
+class Normal(Strategy):
+    def execute(self, x):
+        return x
+    
+class Surge(Strategy):
+    def execute(self, x):
+        return x * 2
+    
+    
+class Context:
+    def __init__(self, strategy):
+        self.strategy = strategy
 
-    def request(self):
-        self.old.old_request()
-        
-Adapter(OldService()).request()
+    def run(self, x):
+        return self.strategy.execute(x)
+    
+ctx = Context(Normal())
+print(ctx.run(100))
+ctx.strategy = Surge()
+print(ctx.run(100))
