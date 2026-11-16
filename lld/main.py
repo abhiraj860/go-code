@@ -1,35 +1,44 @@
 from abc import ABC, abstractmethod
 
-class Node(ABC):
+class Command(ABC):
     @abstractmethod
-    def size(self): ...
+    def execute(self): ...
     
-class File(Node):
-    def __init__(self, size):
-        self._size = size
-        
-    def size(self):
-        return self._size
+    @abstractmethod
+    def undo(self): ...
     
-    
-class Directory(Node):
+class TextEditor:
     def __init__(self):
-        self.children = {}
-    
-    def add(self, name, node):
-        self.children[name] = node
-
-    def remove(self, name):
-        self.children.pop(name, None)
+        self.text = ""
         
-    def size(self):
-        return sum(c.size() for c in self.children.values())
-    
-root = Directory()
-docs = Directory()
-docs.add("a.txt", File(10))
-docs.add("b.txt", File(20))
-root.add("docs", docs)
-root.add("c.txt", File(5))
-print(root.size())
+class AppendCommand(Command):
+    def __init__(self, editor, s):
+        self.editor = editor
+        self.s = s
+
+    def execute(self):
+        self.editor.text += self.s
+        
+    def undo(self):
+        self.editor.text = self.editor.text[:-len(self.s)]
+
+class Invoker:
+    def __init__(self):
+        self.history = []
+        
+    def run(self, cmd):
+        cmd.execute()
+        self.history.append(cmd)
+        
+    def undo(self):
+        if self.history:
+            self.history.pop().undo()
+            
+ed = TextEditor()
+inv = Invoker()
+inv.run(AppendCommand(ed, "hello"))
+inv.run(AppendCommand(ed, " world"))
+print(ed.text)
+inv.undo()
+print(ed.text)
     
