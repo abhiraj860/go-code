@@ -1,39 +1,34 @@
 from abc import ABC, abstractmethod
 
-class State(ABC):
-    @abstractmethod
-    def action1(self): ...
-    
-    @abstractmethod
-    def action2(self): ...
-    
-class StateA(State):
-    def action1(self, ctx):
-        print("State A transitioned to State B")
-        ctx.state = StateB()
-        
-    def action2(self, ctx):
-        raise ValueError("Cannot perform action A")
-    
-class StateB(State):
-    def action1(self, ctx):
-        raise ValueError("Connot perform action B")
-    def action2(self, ctx):
-        print("State B transitioned to State A")
-        ctx.state = StateA()
-        
-        
-class Object:
+class Handler(ABC):
     def __init__(self):
-        self.state = StateA()
-        
-    def action1(self):
-        self.state.action1(self)
+        self.next = None
+
+    def set_next(self, handler):
+        self.next = handler
+        return handler
     
-    def action2(self):
-        self.state.action2(self)
+    @abstractmethod
+    def handle(self, amount): ...
+    
+    def pass_on(self, amount):
+        if self.next:
+            self.next.handle(amount)
+        elif amount > 0:
+            print("cannot dispense remaining ", amount)
+            
+class NoteHandler(Handler):
+    def __init__(self, note):
+        super().__init__()
+        self.note = note
+
+    def handle(self, amount):
+        count, rest = divmod(amount, self.note)
+        if count:
+            print(f"{count} X {self.note}")
+        self.pass_on(rest)
         
-x = Object()
-x.action1()
-x.action2()
-x.action1()
+head = NoteHandler(500)
+head.set_next(NoteHandler(200)).set_next(NoteHandler(100))
+
+head.handle(1800)
