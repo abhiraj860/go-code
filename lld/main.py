@@ -1,34 +1,35 @@
 from abc import ABC, abstractmethod
 
-class Handler(ABC):
-    def __init__(self):
-        self.next = None
-
-    def set_next(self, handler):
-        self.next = handler
-        return handler
-    
+class Node(ABC):
     @abstractmethod
-    def handle(self, amount): ...
+    def size(self): ...
     
-    def pass_on(self, amount):
-        if self.next:
-            self.next.handle(amount)
-        elif amount > 0:
-            print("cannot dispense remaining ", amount)
-            
-class NoteHandler(Handler):
-    def __init__(self, note):
-        super().__init__()
-        self.note = note
-
-    def handle(self, amount):
-        count, rest = divmod(amount, self.note)
-        if count:
-            print(f"{count} X {self.note}")
-        self.pass_on(rest)
+class File(Node):
+    def __init__(self, size):
+        self._size = size
         
-head = NoteHandler(500)
-head.set_next(NoteHandler(200)).set_next(NoteHandler(100))
+    def size(self):
+        return self._size
+    
+    
+class Directory(Node):
+    def __init__(self):
+        self.children = {}
+    
+    def add(self, name, node):
+        self.children[name] = node
 
-head.handle(1800)
+    def remove(self, name):
+        self.children.pop(name, None)
+        
+    def size(self):
+        return sum(c.size() for c in self.children.values())
+    
+root = Directory()
+docs = Directory()
+docs.add("a.txt", File(10))
+docs.add("b.txt", File(20))
+root.add("docs", docs)
+root.add("c.txt", File(5))
+print(root.size())
+    
