@@ -1,6 +1,6 @@
 # Concurrency Practice: 20 Problems
 
-Every concurrency scenario in [00_a_recall.md](00_a_recall.md) and the **Concurrency** sections of [00_deep_dive.md](00_deep_dive.md), plus every primitive in `concurrency_and_system_design/`, is turned into one interview-size problem. Names follow the deep_dive cards and your templates. This file is the companion to [design_pattern_problems.md](design_pattern_problems.md), where P33–P35, P37 and P39 practise the queue, pool and breaker *design*. Here the focus is **thread safety**.
+Every concurrency scenario in the LLD cards (`#01`–`#29`, kept in [moves_problems.md](moves_problems.md)), plus every primitive in `concurrency_and_system_design/`, is turned into one interview-size problem. Names follow the deep_dive cards and your templates. This file is the companion to [design_pattern_problems.md](design_pattern_problems.md), where P33–P35, P37 and P39 practise the queue, pool and breaker *design*. Here the focus is **thread safety**.
 
 ### How to use
 

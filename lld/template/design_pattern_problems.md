@@ -1,6 +1,6 @@
 # Design Pattern Practice: 45 Problems
 
-Every place a design pattern is used in [00_a_recall.md](../template/00_a_recall.md) and [00_deep_dive.md](../template/00_deep_dive.md) is turned into one interview-size problem: **40 problems**. On top of that come **5 adapted problems** for the patterns in `template/design_patterns/` that the docs never name (Builder, Prototype, Decorator, Facade, Adapter). Class, enum and method names follow the deep_dive cards wherever they fit.
+Every place a design pattern is used in the LLD cards is turned into one interview-size problem: **40 problems**. The cards (`#01`–`#29`, with full requirements, classes and follow-ups) live in [moves_problems.md](moves_problems.md). On top of that come **5 adapted problems** for the patterns in `template/design_patterns/` that the docs never name (Builder, Prototype, Decorator, Facade, Adapter). Class, enum and method names follow the deep_dive cards wherever they fit.
 
 ### How to use
 
