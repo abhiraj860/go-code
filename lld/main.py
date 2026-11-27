@@ -1,8 +1,6 @@
 # Problem - 02 - BookMyShow
 from enum import Enum, auto
 from abc import ABC, abstractmethod
-from collections import defaultdict
-import copy
 
 class SeatType(Enum):
     REGULAR = auto()
