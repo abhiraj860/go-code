@@ -1,276 +1,157 @@
-# Problem - 02 - BookMyShow
-from enum import Enum, auto
+# P03 - Splitwise - Strategy (split type)
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
-class SeatType(Enum):
-    REGULAR = auto()
-    PREMIUM = auto()
-
-class SeatStatus(Enum):
-    AVAILABLE = auto()
-    HELD = auto()
-    BOOKED = auto()
-    PENDING = auto()
-    CONFIRMED = auto()
-    CANCELLED = auto()    
-    
-class PaymentMethod(ABC):
+class SplitStrategy(ABC):
     @abstractmethod
-    def pay(self, amount):...
+    def split(self):...
     
     @abstractmethod
-    def refund(self, amount):...
+    def get_user_ids(self):...
     
-     
-class CardPayment(PaymentMethod):
-    def __init__(self, limit):
-        self.limit = limit
-        
-    def pay(self, amount):
-        if amount <= self.limit:
-            self.limit -= amount
-            return True
-        return False
-    
-    def refund(self, amount):
-        self.limit += amount
-
-class UpiPayment(PaymentMethod):
-    def __init__(self, balance):
-        self.balance = balance
-    
-    def pay(self, amount):
-        if amount <= self.balance:
-            self.balance -= amount
-            return True
-        return False
-    
-    def refund(self, amount):
-        self.balance += amount
-    
-    def get_balance(self):
-        return self.balance
-
-class Seat:
-    def __init__(self, seat_number, seat_type):
-        self.seat_number = seat_number
-        self.seat_type = seat_type
-    
-    def get_seat_number(self):
-        return self.seat_number
-    
-    def get_seat_type(self):
-        return self.seat_type
-    
-class ShowSeat:
-    def __init__(self,  seat: Seat):
-        self.seat = seat
-        self.status = SeatStatus.AVAILABLE
-    
-    def get_seat_id(self):
-        return self.seat.get_seat_number()
-            
-    def get_seat(self):
-        return self.seat
-    
-    def get_status(self):
-        return self.status
-    
-    def held(self):
-        if self.status == SeatStatus.AVAILABLE:
-            self.status = SeatStatus.HELD
-            return True
-        return False
-    
-    def confirm(self):
-        if self.status == SeatStatus.PENDING or self.status == SeatStatus.HELD:
-            self.status = SeatStatus.CONFIRMED
-            return True
-        return False
-    
-    def book(self):
-        if self.status == SeatStatus.CONFIRMED:
-            self.status = SeatStatus.BOOKED
-            return True
-        return False
-    
-    def pending(self):
-        if self.status == SeatStatus.HELD or self.status == SeatStatus.CONFIRMED:
-            self.status = SeatStatus.PENDING
-            return True
-        return False
-    
-    def release(self): 
-        self.status == SeatStatus.AVAILABLE
-        return True
-    
-    def cancel(self):
-        if self.status == SeatStatus.BOOKED or self.status == SeatStatus.HELD:
-            self.status = SeatStatus.AVAILABLE
-            return True
-        return False
-
-class Show:
-    def __init__(self, show_id, prices_by_type):
-        self.show_id = show_id
-        self.prices_by_type = prices_by_type
-        self.seat_show_seat: dict[str, ShowSeat] = {}
-                
-    def get_show_id(self):
-        return self.show_id
+class EqualSplit(SplitStrategy):
+    def __init__(self, user_ids):
+        self.user_ids:list[str] = user_ids
          
-    def add_seat(self, seat_number, seat_type):
-        seat = Seat(seat_number, seat_type)
-        show_seat = ShowSeat(seat)
-        self.seat_show_seat[show_seat.get_seat_id()] = show_seat 
+    def split(self, amount):
+        n = len(self.user_ids)
+        equal_amount = amount // n
+        left_amount = amount % n
+        split_amount = {}
+        for users in self.user_ids:
+            split_amount[users] = equal_amount
+        split_amount[self.user_ids[0]] += left_amount
+        return split_amount
         
-    def get_show_seat(self, seat_number):
-        return self.seat_show_seat.get(seat_number, None)
+    def get_user_ids(self):
+        return self.user_ids
     
-    def get_price_by_type(self):
-        return self.prices_by_type
+class ExactSplit(SplitStrategy):
+    def __init__(self, user_amount):
+        self.user_amount:dict[str, int] = user_amount
+    
+    def split(self, amount):
+        if sum(list(self.user_amount.values())) != amount:
+            return None
+        return self.user_amount
+    
+    def get_user_ids(self):
+        return list(self.user_amount.keys())
+    
+class PercentSplit(SplitStrategy):
+    def __init__(self, user_percent):
+        self.user_percent:dict[str, int] = user_percent
+    
+    def split(self, amount):
+        if sum(list(self.user_percent.values())) != 100:
+            return None
+        total = 0
+        for k, v in self.user_percent.items():
+            curr_val = (amount * v) // 100
+            self.user_percent[k] =  curr_val
+            total += curr_val
+        remaining = amount - total
+        keys = self.get_user_ids()
+        i = 0
+        while remaining > 0:
+            i = i % len(keys)
+            self.user_percent[keys[i]] += 1
+            remaining -= 1
+            i += 1
+        return self.user_percent
         
-    
-class Booking:
-    def __init__(self, booking_id, show, seats):
-        self.booking_id = booking_id
-        self.show:Show = show
-        self.seats_show_seats: list[ShowSeat] = seats
-    
-    def get_booking_id(self):
-        return self.booking_id
-    
-    def get_show_seat_list(self):
-        return self.seats_show_seats
-    
-    def hold(self):
-        for seat in self.seats_show_seats:
-            if not seat.held():
-                return False
-        return True
-    
-    def confirm(self):
-        for seat in self.seats_show_seats:
-            if not seat.confirm():
-                return False
-        return True
-    
-    def pending(self):
-        for seat in self.seats_show_seats:
-            if not seat.pending():
-                return False
-        return True
-    
-    def cancelled(self):
-        for seat in self.seats_show_seats:
-            if not seat.cancel():
-                return False
-        return True
-    
-    def booked(self):
-        for seat in self.seats_show_seats:
-            if not seat.book():
-                return False
-        return True
+   
+    def get_user_ids(self):
+        return list(self.user_percent.keys())
 
-    def available(self):
-        for seat in self.seats_show_seats:
-            if not seat.release():
+class Expense:
+    def __init__(self, split_strategy):
+        self.shares = split_strategy
+        
+    def get_shares(self) -> dict | None:
+        return self.shares
+    
+class Group:
+    def __init__(self, group_id, member_ids):
+        self.group_id = group_id
+        self.member_ids = member_ids
+        self.expense:dict[str, list[Expense]] = defaultdict(list)
+    
+    def _check_members(self, ids):
+        for id in ids:
+            if id not in self.member_ids:
                 return False
         return True
-    def get_total(self):
-        balance = 0
-        for seat in self.seats_show_seats:
-            seat_type = seat.get_seat().get_seat_type()
-            balance += self.show.get_price_by_type()[seat_type] 
-        return balance
-     
-    def get_status(self):
-        return self.seats_show_seats[0].get_status()
     
+        
+    def add_expense(self, payer_id, amount, strategy: SplitStrategy) -> Expense | None:
+        involved = [payer_id] + strategy.get_user_ids()
+        if not self._check_members(involved):
+            return None
+        split_strategy = strategy.split(amount)
+        if not split_strategy:
+            return None
+        e1 = Expense(split_strategy)
+        if e1 is not None:
+            self.expense[payer_id].append(e1)
+        return e1
 
-class BookingService:
-    def __init__(self):
-        self.shows: dict[str,Show] = {}
-        self.booking: dict[str, Booking] = {}
-        self.user_booking: dict[str, str] = {}
-        self.cnt = 0
-        self.payment = None
         
-    def add_show(self, show: Show):
-        self.shows[show.get_show_id()] = show 
+    def settle(self, from_id, to_id, amount):
+        if from_id == to_id:
+            return False
+        involved = [from_id, to_id]
+        if not self._check_members(involved):
+            return False
+        if amount <= 0:
+            return False
+        self.expense[from_id].append(Expense({to_id: amount}))
+        return True
         
-    def hold_seats(self, show_id, seat_numbers, user_id):
-        show = self.shows.get(show_id, None)
-        if show:
-            seats:list[ShowSeat] = []
-            for seat_num in seat_numbers:
-                seat = show.get_show_seat(seat_num)
-                if seat is None:
-                    return None
-                seats.append(seat)
-                if show.get_show_seat(seat_num).get_status() != SeatStatus.AVAILABLE:
-                    seats.clear()
-                    return None
-            self.cnt += 1
-            b1 = Booking("B" + str(self.cnt), show, seats)
-            b1.hold()
-            self.user_booking[user_id] = b1.get_booking_id()
-            self.booking[b1.get_booking_id()] = b1
-            return b1
-        return None
+        
+        
+    def get_balance_between(self, a_id, b_id):
+        involved = [a_id, b_id]
+        if not self._check_members(involved):
+            return -1
+        a_paid = 0 
+        for exp in self.expense[a_id]:
+            a_paid += exp.get_shares().get(b_id, 0)
+        b_paid = 0
+        for exp in self.expense[b_id]:
+            b_paid += exp.get_shares().get(a_id, 0)
+        return a_paid - b_paid
+                    
+        
+    def get_net_balance(self):
+        net_balance = defaultdict(int)
+        for user, expense in self.expense.items():
+            for exp in expense:
+                shares = exp.get_shares()
+                for us, amt in shares.items():
+                   if us != user:
+                       net_balance[user] += amt
+                       net_balance[us] -= amt
+        return dict(net_balance) 
+                   
+                       
          
         
-    def confirm_booking(self, booking_id, payment: PaymentMethod):
-        booking = self.booking.get(booking_id, None)
-        if booking is None:
-            return False
-        total_amount = booking.get_total()
-        self.payment = payment
-        booking.confirm()
-        if payment.pay(total_amount):
-            booking.booked()
-            return True
-        booking.pending()
-        return False 
-    
-    def cancel_booking(self, booking_id):
-        booking = self.booking.get(booking_id, None)
-        if booking is None:
-            return False
-        total = booking.get_total()
-        if booking.cancelled():
-            self.payment.refund(total)
-            return True
-        return False
-        
-    
-show = Show("S1", {SeatType.REGULAR: 200, SeatType.PREMIUM: 350})
-show.add_seat("A1", SeatType.REGULAR)
-show.add_seat("A2", SeatType.REGULAR)
-show.add_seat("P1", SeatType.PREMIUM)
-svc = BookingService()
-svc.add_show(show)
-b1 = svc.hold_seats("S1", ["A1", "P1"], "u1")
-print(b1.get_booking_id(), b1.get_total())
-print(svc.hold_seats("S1", ["A2", "P1"], "u2"))
-print(show.get_show_seat("A2").get_status().name)
-print(svc.hold_seats("S1", ["A2", "Z9"], "u2"))
-upi = UpiPayment(500)
-print(svc.confirm_booking("B1", upi))
-print(b1.get_status().name, upi.get_balance())
-card = CardPayment(1000)
-print(svc.confirm_booking("B1", card))
-print(show.get_show_seat("P1").get_status().name)
-print(svc.confirm_booking("B1", card))
-b2 = svc.hold_seats("S1", ["A2"], "u2")
-upi2 = UpiPayment(300)
-print(svc.confirm_booking(b2.get_booking_id(), upi2))
-print(upi2.get_balance())
-print(svc.cancel_booking("B2"))
-print(upi2.get_balance())
-print(show.get_show_seat("A2").get_status().name)
-print(svc.cancel_booking("B2"))
-b3 = svc.hold_seats("S1", ["A2"], "u3")
-print(svc.cancel_booking(b3.get_booking_id()))
-print(svc.cancel_booking("B9"))
+
+g = Group("trip", ["A", "B", "C"])
+e1 = g.add_expense("A", 100, EqualSplit(["A", "B", "C"]))
+print(e1.get_shares())
+print(g.get_balance_between("A", "B"))
+print(g.add_expense("B", 90, ExactSplit({"A": 50, "C": 30})))
+e2 = g.add_expense("B", 90, ExactSplit({"A":60, "C": 30}))
+print(e2.get_shares())
+print(g.get_balance_between("A", "B"))
+print(g.add_expense("C", 50, PercentSplit({"A": 50, "B": 40})))
+e3 = g.add_expense("C", 99, PercentSplit({"A":50, "B": 25, "C": 25}))
+print(e3.get_shares())
+print(g.add_expense("D", 10, EqualSplit(["A", "B"])))
+print(g.get_net_balance())
+print(g.settle("A", "B", 32))
+print(g.get_net_balance())
+print(g.get_balance_between("C", "A"))
+print(g.settle("A", "A", 5))
